@@ -1518,6 +1518,7 @@ function hmNew(){ if(!isFac()){ facBlock(); return; } gMut('hangman',HM_DEF,merg
 RENDER.hangman=function(){
   const s=G.hangman||HM_DEF, el=document.getElementById('hmStage');
   if(!s.word){
+    if(document.getElementById('hmWord')) return;
     el.innerHTML='<div class="cat">'+t('KELİMEYİ BELİRLE — TAKIM ÇÖZSÜN')+'</div>'
       +'<div style="display:flex; gap:8px; max-width:380px; margin:18px auto 0;">'
       +'<input class="field" id="hmWord" maxlength="20" placeholder="'+t('gizli kelime...')+'" onkeydown="if(event.key===\'Enter\')hmSet()">'
