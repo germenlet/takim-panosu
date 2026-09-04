@@ -33,3 +33,25 @@ Sol menüden **Project Settings → API**:
 - **anon public** key (uzun bir JWT string)
 
 Bu ikisini bana yapıştır, dosyalara gömüp sana hazır halde geri vereceğim. (anon key herkese açık/client-side kullanım için tasarlanmıştır, gizli tutman gereken `service_role` key'i **asla** paylaşma.)
+
+## 4) Güvenlik sıkılaştırması (public kullanım için)
+
+Adım 2'deki policy'ler tabloyu tamamen açık bırakıyor — herkes her satırı silebiliyordu, bu da script'le "tüm odaları sil" saldırısına açık demekti. **SQL Editor**'de yeni bir query açıp aşağıdakini çalıştır:
+
+```sql
+-- Silme iznini tamamen kaldır — uygulama zaten hiçbir zaman gerçek silme yapmıyor
+-- (öğeler "del:true" ile işaretlenip update ile kaydediliyor), bu yüzden bu güvenli.
+drop policy if exists "public delete" on public.tp_kv;
+
+-- Anahtar formatını ("tp:ODAKODU:oyun") ve satır boyutunu sınırla —
+-- rastgele/şişirilmiş verilerle tabloyu spam'lemeyi/kotayı tüketmeyi zorlaştırır.
+alter table public.tp_kv
+  add constraint tp_kv_key_format check (k ~ '^tp:[A-Z0-9]{1,8}:[a-z]{2,24}$'),
+  add constraint tp_kv_value_size check (char_length(v) <= 200000);
+```
+
+Bunu çalıştırdıktan sonra:
+- Kimse (anon key'i bilse bile) artık bir satırı **silemez** — sadece okuma/yazma/güncelleme kalır, uygulamanın ihtiyacı zaten bu.
+- Uygulamanın kullanmadığı formatta bir anahtara veya 200KB'tan büyük bir değere yazma girişimi veritabanı seviyesinde reddedilir.
+
+⚠️ Hâlâ kalan gerçek risk: oda kodunu bilen (veya 4 karakterlik kodu deneyerek bulan) herkes o odanın verisini okuyup normal şekilde güncelleyebilir — gerçek kullanıcı girişi (auth) olmadan bunun tam çözümü yok. "Oda kodunu bilen herkes görebilir, gizli bilgi yazma" uyarısı bu yüzden arayüzde duruyor. Daha ileri gitmek istersen (örn. oda başına parola, gerçek auth) ayrıca konuşabiliriz.
