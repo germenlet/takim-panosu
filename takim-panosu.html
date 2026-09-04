@@ -509,7 +509,7 @@ button.stcard:hover{border-color:var(--blue);}
     <div class="cnbar">
       <button class="btn btn-ink fac-only" onclick="cnNew()">Yeni oyun</button>
       <label style="display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:700;">
-        <input type="checkbox" id="spyToggle" onchange="cnRender()"> İpucu ustası görünümü 🕶️
+        <input type="checkbox" id="spyToggle" onchange="RENDER.codenames()"> İpucu ustası görünümü 🕶️
       </label>
       <div class="score" style="margin-left:auto;"><span class="b" id="cnBlue">🔵 0</span><span class="r" id="cnRed">🔴 0</span><span id="cnMsg" style="color:var(--muted); font-weight:500;"></span></div>
     </div>
@@ -647,8 +647,8 @@ button.stcard:hover{border-color:var(--blue);}
    window.storage ile birebir aynı arayüz (get/set/delete/list) — alttaki
    19 oyunun tamamı bunun Claude.ai'nin kendi storage'ı mı yoksa Supabase mi
    olduğunu bilmez, hiç değişmeden çalışır. */
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://oguyxmjjjglxikwovnml.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ndXl4bWpqamdseGlrd292bm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1NDY5ODEsImV4cCI6MjEwNDEyMjk4MX0.l2_qr0E6DZQANd9zXPXf4CuAoPj16IINHfLeBASz_Wo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.storage = {
   async get(key){

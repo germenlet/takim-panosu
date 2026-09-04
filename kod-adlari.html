@@ -138,8 +138,8 @@ label{display:block; font-size:12.5px; font-weight:700; margin:14px 0 6px; lette
    window.storage ile birebir aynı arayüz (get/set/delete/list) — alttaki
    oyun kodu bunun Claude.ai'nin kendi storage'ı mı yoksa Supabase mi
    olduğunu bilmez, hiç değişmeden çalışır. */
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://oguyxmjjjglxikwovnml.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ndXl4bWpqamdseGlrd292bm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1NDY5ODEsImV4cCI6MjEwNDEyMjk4MX0.l2_qr0E6DZQANd9zXPXf4CuAoPj16IINHfLeBASz_Wo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.storage = {
   async get(key){
