@@ -31,6 +31,8 @@ header{display:flex; align-items:center; gap:14px; padding:10px 4px 18px; flex-w
 .roomtag .pill{background:var(--ink); color:#fff; border-radius:999px; padding:6px 14px; font-weight:700; letter-spacing:2px;}
 .roomtag .who{color:var(--muted);}
 .roomtag button{background:none; border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted);}
+.roomtag button.linkbtn{background:var(--blue); border-color:var(--blue); color:#fff; font-weight:700; padding:7px 14px; white-space:nowrap;}
+.field[readonly]{background:#F2F1EC; color:var(--muted); cursor:not-allowed;}
 .langtog{display:flex; border:1.5px solid var(--line); border-radius:8px; overflow:hidden; margin-left:10px;}
 .langtog button{border:none; background:#fff; padding:6px 11px; font-size:12px; font-weight:700; color:var(--muted);}
 .langtog button.on{background:var(--ink); color:#fff;}
@@ -277,7 +279,7 @@ button.stcard:hover{border-color:var(--blue);}
     <div class="spacer"></div>
     <div class="roomtag" id="roomTag">
       <span class="who" id="whoami"></span><span class="pill" id="roomPill"></span>
-      <button onclick="copyRoomLink()" title="Davet linkini kopyala">🔗</button>
+      <button class="linkbtn" onclick="copyRoomLink()" title="Davet linkini kopyala">🔗 Linki kopyala</button>
       <span class="facbadge" id="facBadge"></span>
       <button onclick="leaveRoom()">Odadan çık</button>
     </div>
@@ -295,9 +297,9 @@ button.stcard:hover{border-color:var(--blue);}
       <label>Oda kodu</label>
       <div style="display:flex; gap:8px;">
         <input class="field" id="jRoom" maxlength="8" placeholder="örn. ROKET" style="text-transform:uppercase; letter-spacing:2px;">
-        <button class="btn btn-ghost" onclick="randomRoom()" style="white-space:nowrap;">🎲 Rastgele</button>
+        <button class="btn btn-ghost" id="randomRoomBtn" onclick="randomRoom()" style="white-space:nowrap;">🎲 Rastgele</button>
       </div>
-      <label class="faccheck"><input type="checkbox" id="jFac"> 🎬 Ben facilitator'ım (bu oturumu ben yöneteceğim)</label>
+      <label class="faccheck" id="facCheckWrap"><input type="checkbox" id="jFac"> 🎬 Ben facilitator'ım (bu oturumu ben yöneteceğim)</label>
       <button class="btn btn-ink" onclick="joinRoom()">Odaya gir →</button>
       <div class="joininfo">
         <div class="joininfo-row"><span class="ico">🔄</span><span>Takım arkadaşların aynı oda koduyla girince aynı oyunları görür — birkaç saniyede bir eşitlenir.</span></div>
@@ -928,7 +930,11 @@ function copyRoomLink(){
   const rp=new URLSearchParams(location.search).get('room');
   if(rp){
     const inp=document.getElementById('jRoom');
-    if(inp) inp.value=rp.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(inp){ inp.value=rp.toUpperCase().replace(/[^A-Z0-9]/g,''); inp.readOnly=true; }
+    const randBtn=document.getElementById('randomRoomBtn');
+    if(randBtn) randBtn.style.display='none';
+    const facWrap=document.getElementById('facCheckWrap');
+    if(facWrap) facWrap.style.display='none';
     const nameInp=document.getElementById('jName');
     if(nameInp) setTimeout(()=>nameInp.focus(),0);
   }
