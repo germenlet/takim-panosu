@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Takım Panosu — Agile Oyun Odası</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#F7F6F1; --board:#FFFFFF; --ink:#242B36; --muted:#7A8090; --line:#E5E2D8;
+  --blue:#2B5BD7; --red:#E23D3D; --green:#1E9E5A; --amber:#E8A013;
+  --s-yellow:#FFE97A; --s-pink:#FFB7C5; --s-green:#B4EBC3; --s-blue:#AEE1F5; --s-purple:#E3CCF7;
+  --hand:'Caveat',cursive; --ui:'Space Grotesk',sans-serif;
+  --shadow:0 2px 6px rgba(30,35,50,.10), 0 8px 20px rgba(30,35,50,.06);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{font-family:var(--ui); color:var(--ink); background:var(--bg);
+  background-image:radial-gradient(rgba(36,43,54,.055) 1px, transparent 1px); background-size:22px 22px;}
+button{font-family:var(--ui); cursor:pointer;}
+input,textarea,select{font-family:var(--ui); font-size:15px; color:var(--ink);}
+.wrap{max-width:1060px; margin:0 auto; padding:16px 16px 60px;}
+header{display:flex; align-items:center; gap:14px; padding:10px 4px 18px; flex-wrap:wrap;}
+.logo{font-family:var(--hand); font-weight:700; font-size:34px; line-height:1;}
+.logo u{text-decoration:none; position:relative;}
+.logo u::after{content:''; position:absolute; left:0; right:-4px; bottom:-4px; height:6px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='8'%3E%3Cpath d='M2 5 Q30 1 60 4 T118 3' stroke='%23E23D3D' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat; background-size:100% 100%;}
+.spacer{flex:1;}
+.roomtag{display:none; align-items:center; gap:10px; font-size:13px;}
+.roomtag .pill{background:var(--ink); color:#fff; border-radius:999px; padding:6px 14px; font-weight:700; letter-spacing:2px;}
+.roomtag .who{color:var(--muted);}
+.roomtag button{background:none; border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted);}
+.langtog{display:flex; border:1.5px solid var(--line); border-radius:8px; overflow:hidden; margin-left:10px;}
+.langtog button{border:none; background:#fff; padding:6px 11px; font-size:12px; font-weight:700; color:var(--muted);}
+.langtog button.on{background:var(--ink); color:#fff;}
+.facbadge{background:var(--amber); color:#fff; border-radius:999px; padding:5px 12px; font-weight:700; font-size:11.5px; display:none;}
+.faccheck{display:flex !important; align-items:center; gap:8px; margin-top:14px !important; font-weight:500 !important; text-transform:none !important; font-size:13.5px !important; color:var(--muted); letter-spacing:0 !important; cursor:pointer;}
+.faccheck input{width:16px; height:16px;}
+/* timer */
+.timerinline{display:inline-flex; align-items:center; gap:6px; margin-left:auto; font-size:12.5px; color:var(--muted); font-weight:700;}
+.timerinline .tset{border:1.5px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; font-size:11.5px; color:var(--muted); font-weight:700; cursor:pointer;}
+.timerinline .tnum{font-family:var(--hand); font-size:20px; color:var(--blue);}
+.timerinline .tnum.tdone{color:var(--red); animation:tpulse .6s ease infinite;}
+@keyframes tpulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+#timerFloat{position:fixed; bottom:20px; right:20px; z-index:90; background:var(--ink); color:#fff; border-radius:16px; padding:10px 16px;
+  box-shadow:0 6px 20px rgba(30,35,50,.25); display:none; align-items:center; gap:10px; font-size:13px;}
+#timerFloat.show{display:flex;}
+#timerFloat .tnum{font-family:var(--hand); font-size:26px; color:#fff;}
+#timerFloat .tnum.tdone{color:#FF8A8A; animation:tpulse .6s ease infinite;}
+#timerFloat button{border:none; background:rgba(255,255,255,.15); color:#fff; border-radius:8px; padding:5px 10px; font-size:11px; cursor:pointer;}
+.timerpicker{position:fixed; bottom:70px; right:20px; z-index:91; background:#fff; border:1px solid var(--line); border-radius:12px;
+  padding:10px; box-shadow:var(--shadow); display:none; flex-wrap:wrap; gap:6px; max-width:220px;}
+.timerpicker.show{display:flex;}
+.timerpicker button{border:1.5px solid var(--line); background:#fff; border-radius:8px; padding:7px 10px; font-size:12px; font-weight:700; cursor:pointer;}
+/* sailboat */
+.sailgrid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+@media (max-width:700px){.sailgrid{grid-template-columns:1fr;}}
+.sailq{min-height:220px; border-radius:14px; border:1.5px solid var(--line); background:var(--board); box-shadow:var(--shadow); padding:12px; display:flex; flex-direction:column; gap:10px;}
+.sailq.sel{border-color:var(--blue); box-shadow:0 0 0 3px rgba(43,91,215,.15);}
+.sailq h3{font-family:var(--hand); font-size:20px; margin:0;}
+.sailq .note{position:static; width:100%; cursor:default;}
+/* kudos */
+.kudoswall{display:flex; flex-wrap:wrap; gap:12px;}
+.kcard{background:var(--s-yellow); border-radius:4px; padding:14px 14px 22px; width:220px; font-family:var(--hand); font-size:17px; line-height:1.3; box-shadow:0 3px 8px rgba(30,35,50,.15); position:relative;}
+.kcard:nth-child(5n+2){background:var(--s-pink);} .kcard:nth-child(5n+3){background:var(--s-blue);}
+.kcard:nth-child(5n+4){background:var(--s-green);} .kcard:nth-child(5n+5){background:var(--s-purple);}
+.kcard .au{position:absolute; bottom:6px; right:12px; font-family:var(--ui); font-size:10.5px; color:rgba(36,43,54,.55); font-weight:700;}
+/* flow */
+.flowsec{margin-bottom:30px;}
+.flowcards{display:flex; gap:14px; flex-wrap:wrap;}
+.flowcard{background:var(--board); border:1.5px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow); text-align:left; min-width:200px; max-width:240px; cursor:pointer;}
+.flowcard:hover{border-color:var(--blue);}
+.flowcard .fnm{font-family:var(--hand); font-size:20px; font-weight:700; display:block; margin-bottom:4px;}
+.flowcard .fds{font-size:12px; color:var(--muted);}
+#flowFloat{position:fixed; bottom:20px; left:20px; z-index:90; background:var(--ink); color:#fff; border-radius:16px; padding:10px 14px;
+  box-shadow:0 6px 20px rgba(30,35,50,.25); display:none; align-items:center; gap:8px; font-size:12.5px; max-width:340px;}
+#flowFloat.show{display:flex;}
+#flowFloat button{border:none; background:rgba(255,255,255,.15); color:#fff; border-radius:8px; padding:5px 9px; font-size:11px; cursor:pointer; white-space:nowrap;}
+#flowFloat button[disabled]{display:none;}
+/* sprint akışı */
+.sfsizes{display:flex; gap:4px;}
+.sfsizes button{border:1.5px solid var(--line); background:#fff; border-radius:8px; padding:9px 11px; font-size:12px; font-weight:700; color:var(--muted);}
+.sfsizes button.sel{border-color:var(--blue); background:rgba(43,91,215,.08); color:var(--blue);}
+.sfdays{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;}
+.sfcol{min-height:130px; border-radius:14px; border:1.5px solid var(--line); background:var(--board); box-shadow:var(--shadow); padding:10px; display:flex; flex-direction:column; gap:8px; cursor:pointer;}
+.sfcol.sel{border-color:var(--blue); box-shadow:0 0 0 3px rgba(43,91,215,.15);}
+.sfcol h4{font-family:var(--hand); font-size:19px; font-weight:700; display:flex; justify-content:space-between; align-items:baseline;}
+.sfcol h4 small{font-family:var(--ui); font-size:10.5px; color:var(--muted); font-weight:700;}
+.sfcard{background:#fff; border:1.5px solid var(--line); border-radius:9px; padding:8px 9px; font-size:12.5px; position:relative;}
+.sfcard .sz{display:inline-block; font-size:10px; font-weight:700; border-radius:5px; padding:1px 6px; margin-right:5px; color:#fff;}
+.sfcard .sz.S{background:var(--green);} .sfcard .sz.M{background:var(--blue);} .sfcard .sz.L{background:var(--amber);} .sfcard .sz.XL{background:var(--red);}
+.sfcard .ops{display:flex; gap:6px; margin-top:6px;}
+.sfcard .ops button{border:none; background:none; font-size:10.5px; color:var(--muted); cursor:pointer; padding:0;}
+.sfcard .au{display:block; margin-top:4px; font-size:10px; color:var(--muted);}
+.sfbar{display:flex; align-items:center; gap:10px; margin:7px 0;}
+.sfbar .lab{width:66px; font-size:12.5px; font-weight:700; text-align:right;}
+.sfbar .track{flex:1; background:#EFECE2; border-radius:8px; height:24px; overflow:hidden;}
+.sfbar .fill{height:100%; border-radius:8px; display:flex; align-items:center; padding:0 8px; font-size:11px; color:#fff; font-weight:700; white-space:nowrap; transition:width .3s;}
+.card{background:var(--board); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow);}
+.btn{border:none; border-radius:10px; padding:11px 18px; font-weight:700; font-size:14px; transition:transform .06s ease;}
+.btn:active{transform:scale(.97);}
+.btn-blue{background:var(--blue); color:#fff;} .btn-ink{background:var(--ink); color:#fff;}
+.btn-ghost{background:transparent; border:1.5px solid var(--line); color:var(--ink);}
+.btn-red{background:var(--red); color:#fff;} .btn-green{background:var(--green); color:#fff;}
+.btn[disabled]{opacity:.45; cursor:not-allowed;}
+.field{width:100%; border:1.5px solid var(--line); border-radius:10px; padding:11px 12px; background:#fff;}
+.field:focus{outline:none; border-color:var(--blue);}
+.hint{font-size:12.5px; color:var(--muted); line-height:1.5;}
+.view{display:none;} .view.active{display:block;}
+.backbar{display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+.backbar h2{font-family:var(--hand); font-size:32px; font-weight:700;}
+.backbar .btn{padding:8px 14px;}
+.sync{font-size:11.5px; color:var(--muted); margin-left:auto;}
+.sync::before{content:'●'; color:var(--green); margin-right:5px; font-size:9px;}
+.pad{padding:20px;} .pad h3{font-family:var(--hand); font-size:26px; margin-bottom:10px;}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+@media (max-width:820px){.grid2{grid-template-columns:1fr;}}
+#join .card{max-width:430px; margin:6vh auto 0; padding:28px;}
+#join h1{font-family:var(--hand); font-size:44px; margin-bottom:2px;}
+#join p.sub{color:var(--muted); font-size:14px; margin-bottom:20px;}
+#join label{display:block; font-size:12.5px; font-weight:700; margin:14px 0 6px; letter-spacing:.4px; text-transform:uppercase; color:var(--muted);}
+#join .btn{width:100%; margin-top:20px; padding:13px;}
+#join .note{margin-top:14px;}
+/* home */
+.catsec{margin-bottom:30px;}
+.cath{font-family:var(--hand); font-size:29px; margin:0 2px 4px;}
+.catds{font-size:13px; color:var(--muted); margin:0 2px 14px;}
+.games{display:grid; grid-template-columns:repeat(auto-fill,minmax(185px,1fr)); gap:18px;}
+.game{position:relative; padding:20px 15px 16px; border:none; border-radius:4px; text-align:left;
+  box-shadow:0 4px 10px rgba(30,35,50,.14), 0 12px 26px rgba(30,35,50,.08); min-height:142px;
+  display:flex; flex-direction:column; gap:7px; transition:transform .12s ease;}
+.game:hover{transform:translateY(-4px) rotate(0deg) !important;}
+.game::before{content:''; position:absolute; top:-9px; left:50%; transform:translateX(-50%) rotate(-2deg);
+  width:60px; height:17px; background:rgba(255,255,255,.55); border:1px solid rgba(0,0,0,.06);}
+.game .em{font-size:28px;} .game .nm{font-family:var(--hand); font-size:24px; font-weight:700; line-height:1;}
+.game .ds{font-size:12px; color:rgba(36,43,54,.72); line-height:1.4;}
+.game.c0{background:var(--s-yellow); transform:rotate(-1.4deg);}
+.game.c1{background:var(--s-pink); transform:rotate(1.1deg);}
+.game.c2{background:var(--s-blue); transform:rotate(-0.8deg);}
+.game.c3{background:var(--s-green); transform:rotate(1.6deg);}
+.game.c4{background:var(--s-purple); transform:rotate(-1.1deg);}
+/* board */
+.toolrow{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;}
+.toolrow .field{flex:1; min-width:180px;}
+.colors{display:flex; gap:6px;}
+.swatch{width:28px; height:28px; border-radius:6px; border:2px solid transparent;}
+.swatch.sel{border-color:var(--ink);}
+.modetog{display:flex; border:1.5px solid var(--line); border-radius:10px; overflow:hidden;}
+.modetog button{border:none; background:#fff; padding:9px 14px; font-size:13px; font-weight:700; color:var(--muted);}
+.modetog button.on{background:var(--ink); color:#fff;}
+#boardArea{position:relative; min-height:520px; border-radius:14px; border:1px solid var(--line);
+  background:var(--board); box-shadow:var(--shadow); overflow:hidden;}
+.note{position:absolute; width:172px; min-height:110px; padding:12px 12px 26px; border-radius:3px;
+  box-shadow:0 3px 8px rgba(30,35,50,.18); font-family:var(--hand); font-size:20px; line-height:1.15;
+  touch-action:none; user-select:none; cursor:grab; word-break:break-word;}
+.note:active{cursor:grabbing;}
+.note .au{position:absolute; bottom:6px; left:12px; font-family:var(--ui); font-size:10.5px; color:rgba(36,43,54,.55); font-weight:700;}
+.note .del{position:absolute; top:4px; right:6px; border:none; background:none; font-size:13px; color:rgba(36,43,54,.4); cursor:pointer; font-family:var(--ui);}
+.retrocols{display:grid; grid-template-columns:repeat(3,1fr); min-height:520px;}
+.rcol{border-right:1.5px dashed var(--line); padding:14px; display:flex; flex-direction:column; gap:12px;}
+.rcol:last-child{border-right:none;}
+.rcol h3{font-family:var(--hand); font-size:24px; text-align:center; margin-bottom:2px;}
+.rcol .note{position:static; width:100%; cursor:default;}
+.rcol.drop-hint{background:rgba(43,91,215,.05);}
+@media (max-width:700px){.retrocols{grid-template-columns:1fr;} .rcol{border-right:none; border-bottom:1.5px dashed var(--line);}}
+/* lists & chips */
+.plist{display:flex; flex-direction:column; gap:8px; max-height:440px; overflow:auto;}
+.prow{display:flex; align-items:center; gap:10px; border:1.5px solid var(--line); border-radius:10px; padding:10px 14px; background:#fff; text-align:left; font-size:14.5px; font-weight:500;}
+button.prow:hover{border-color:var(--blue);}
+.prow .st{margin-left:auto; font-size:11px; color:var(--muted); white-space:nowrap;}
+.prow .x{border:none; background:none; color:var(--muted); font-size:13px; cursor:pointer;}
+.stcard{border:1.5px solid var(--line); border-radius:12px; padding:14px; margin-bottom:10px; background:#fff; text-align:left; width:100%; font-size:15px; line-height:1.4; position:relative;}
+button.stcard:hover{border-color:var(--blue);}
+.stcard.picked{border-color:var(--blue); background:rgba(43,91,215,.06);}
+.stcard.lie-yes{border-color:var(--red); background:rgba(226,61,61,.07);}
+.stcard.lie-no{border-color:var(--green); background:rgba(30,158,90,.06);}
+.stcard .tag{position:absolute; top:-9px; right:10px; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; color:#fff;}
+.stcard .votes{display:block; margin-top:6px; font-size:12px; color:var(--muted);}
+.stline{display:flex; gap:8px; align-items:center; margin-bottom:9px;}
+.stline input[type=text]{flex:1;}
+.stline label.lie{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); white-space:nowrap;}
+/* stage (deck games) */
+.stage{padding:30px 20px; text-align:center;}
+.stage .cat{font-size:12px; font-weight:700; letter-spacing:2px; color:var(--muted); text-transform:uppercase;}
+.stage .big{font-size:56px; line-height:1.35; margin:16px 0; letter-spacing:5px;}
+.stage .q{font-size:23px; font-weight:700; margin:18px auto; max-width:640px; line-height:1.4;}
+.stage .ans{font-family:var(--hand); font-size:34px; font-weight:700; min-height:44px; color:var(--blue);}
+.stage .ans.hidden-ans{color:transparent; text-shadow:0 0 18px rgba(36,43,54,.45);}
+.stage .idx{font-size:12.5px; color:var(--muted); margin-top:8px;}
+.ctrls{display:flex; gap:10px; justify-content:center; margin-top:18px; flex-wrap:wrap;}
+.vote2{display:flex; gap:14px; justify-content:center; margin:14px 0 4px; flex-wrap:wrap;}
+.vbtn{flex:1; min-width:180px; max-width:300px; border:2px solid var(--line); background:#fff; border-radius:14px; padding:18px 14px; font-size:16px; font-weight:700; line-height:1.35;}
+.vbtn:hover{border-color:var(--blue);}
+.vbtn.sel{border-color:var(--blue); background:rgba(43,91,215,.07);}
+.vbtn .pct{display:block; margin-top:8px; font-family:var(--hand); font-size:26px; color:var(--blue);}
+.vbtn.win{border-color:var(--green); background:rgba(30,158,90,.07);}
+/* bars */
+.bar{display:flex; align-items:center; gap:10px; margin:8px 0;}
+.bar .lab{width:130px; font-size:13.5px; font-weight:700; text-align:right;}
+.bar .track{flex:1; background:#EFECE2; border-radius:8px; height:26px; overflow:hidden; position:relative;}
+.bar .fill{height:100%; border-radius:8px; display:flex; align-items:center; padding:0 8px; font-size:11.5px; color:#fff; font-weight:700; min-width:0; transition:width .3s; white-space:nowrap;}
+/* mood */
+.moodrow{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:14px 0;}
+.moodbtn{border:2px solid var(--line); background:#fff; border-radius:14px; padding:12px 14px; text-align:center; min-width:92px;}
+.moodbtn .e{font-size:32px; display:block;} .moodbtn .l{font-size:12px; font-weight:700; color:var(--muted);}
+.moodbtn.sel{border-color:var(--blue); background:rgba(43,91,215,.07);}
+/* cloud */
+.cloud{display:flex; flex-wrap:wrap; gap:14px 20px; justify-content:center; align-items:center; padding:26px 10px; min-height:120px;}
+.cloud span{font-family:var(--hand); font-weight:700; line-height:1;}
+/* chain / story */
+.chips{display:flex; flex-wrap:wrap; gap:8px; padding:6px 0;}
+.chip{background:#fff; border:1.5px solid var(--line); border-radius:999px; padding:7px 14px; font-size:14px; font-weight:700;}
+.chip small{color:var(--muted); font-weight:500;}
+.chip:last-child{border-color:var(--blue);}
+.storyline{font-size:15.5px; line-height:1.7; padding:16px 4px;}
+.storyline b{color:var(--blue); font-size:11.5px; vertical-align:super;}
+/* hangman */
+.lgrid{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:16px; max-width:560px; margin-left:auto; margin-right:auto;}
+.lgrid button{width:40px; height:40px; border-radius:8px; border:1.5px solid var(--line); background:#fff; font-weight:700; font-size:15px;}
+.lgrid button:disabled{opacity:.35;}
+.lgrid button.hit{background:var(--green); color:#fff; border-color:var(--green); opacity:1;}
+.lgrid button.miss{background:var(--red); color:#fff; border-color:var(--red); opacity:1;}
+.hword{font-family:var(--ui); font-size:34px; letter-spacing:10px; font-weight:700; margin:14px 0;}
+/* codenames */
+.cnbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;}
+.score{display:flex; gap:8px; align-items:center; font-weight:700; font-size:14px;}
+.score .b{color:var(--blue);} .score .r{color:var(--red);}
+.cngrid{display:grid; grid-template-columns:repeat(5,1fr); gap:8px;}
+.cncell{border:none; border-radius:8px; padding:0; aspect-ratio:1.55; font-weight:700; font-size:clamp(9px,1.9vw,14.5px);
+  background:#F2EFE6; color:var(--ink); box-shadow:0 1px 3px rgba(30,35,50,.12); text-transform:uppercase; overflow:hidden;}
+.cncell.rv-red{background:var(--red); color:#fff;} .cncell.rv-blue{background:var(--blue); color:#fff;}
+.cncell.rv-neutral{background:#D8D2BF; color:rgba(36,43,54,.55);} .cncell.rv-assassin{background:var(--ink); color:#fff;}
+.cncell.spy-red{box-shadow:inset 0 0 0 3px var(--red);} .cncell.spy-blue{box-shadow:inset 0 0 0 3px var(--blue);}
+.cncell.spy-assassin{box-shadow:inset 0 0 0 3px var(--ink); background:#CFCBC0;}
+/* poker & fist */
+.pkcards{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:16px 0;}
+.pkc{width:64px; height:92px; border-radius:10px; border:2px solid var(--line); background:#fff; font-size:22px; font-weight:700; transition:transform .1s;}
+.pkc:hover{transform:translateY(-5px);}
+.pkc.sel{border-color:var(--blue); background:var(--blue); color:#fff; transform:translateY(-8px);}
+.pkresults{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:8px;}
+.pkr{width:78px; text-align:center;}
+.pkr .face{height:86px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:700; background:var(--ink); color:#fff;}
+.pkr .face.open{background:#fff; color:var(--ink); border:2px solid var(--blue);}
+.pkr .nm{font-size:12px; margin-top:6px; color:var(--muted); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.pkstat{text-align:center; font-family:var(--hand); font-size:30px; margin-top:14px; min-height:38px;}
+/* health */
+.hrow{display:flex; align-items:center; gap:10px; margin:10px 0; flex-wrap:wrap;}
+.hrow .hn{width:190px; font-size:14px; font-weight:700;}
+.hrow .lights{display:flex; gap:6px;}
+.hlight{width:36px; height:36px; border-radius:50%; border:2px solid var(--line); background:#fff; font-size:16px;}
+.hlight.sel{border-color:var(--ink); transform:scale(1.1);}
+.hagg{flex:1; min-width:160px; display:flex; height:22px; border-radius:6px; overflow:hidden; background:#EFECE2;}
+.hagg div{display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; font-weight:700;}
+#toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+  padding:10px 20px; border-radius:999px; font-size:13.5px; opacity:0; pointer-events:none; transition:opacity .25s; z-index:99;}
+#toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">Takım <u>Panosu</u></div>
+    <div class="spacer"></div>
+    <div class="roomtag" id="roomTag">
+      <span class="who" id="whoami"></span><span class="pill" id="roomPill"></span>
+      <span class="facbadge" id="facBadge"></span>
+      <button onclick="leaveRoom()">Odadan çık</button>
+    </div>
+    <div class="langtog" id="langTog">
+      <button class="on" data-lang="tr" onclick="setLang('tr')">TR</button><button data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+  </header>
+
+  <section class="view active" id="join">
+    <div class="card">
+      <h1>Hoş geldin! 👋</h1>
+      <p class="sub">Scrum master'lar ve agile takımlar için oyun odası — 18 oyun, 5 tema.</p>
+      <label>Adın</label>
+      <input class="field" id="jName" maxlength="20" placeholder="örn. Bilal">
+      <label>Oda kodu</label>
+      <div style="display:flex; gap:8px;">
+        <input class="field" id="jRoom" maxlength="8" placeholder="örn. SOMPO" style="text-transform:uppercase; letter-spacing:2px;">
+        <button class="btn btn-ghost" onclick="randomRoom()" style="white-space:nowrap;">🎲 Rastgele</button>
+      </div>
+      <label class="faccheck"><input type="checkbox" id="jFac"> 🎬 Ben facilitator'ım (bu oturumu ben yöneteceğim)</label>
+      <button class="btn btn-ink" onclick="joinRoom()">Odaya gir →</button>
+      <p class="hint note">Takım arkadaşların aynı oda koduyla girince aynı oyunları görür (birkaç saniyede bir eşitlenir). Yazdıkların, oda kodunu bilen herkes tarafından görülebilir — gizli bilgi yazmayın.</p>
+    </div>
+  </section>
+
+  <section class="view" id="home"></section>
+  <!-- ORTAK PANO -->
+  <section class="view" id="board">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Ortak Pano</h2>
+      <div class="modetog"><button id="mFree" class="fac-only" onclick="setBoardMode('free')">Serbest</button><button id="mRetro" class="fac-only" onclick="setBoardMode('retro')">Retro</button></div>
+      <span class="sync">canlı</span></div>
+    <div class="toolrow">
+      <input class="field" id="noteText" maxlength="140" placeholder="Notunu yaz..." onkeydown="if(event.key==='Enter')addNote()">
+      <div class="colors" id="colorRow"></div>
+      <button class="btn btn-blue" onclick="addNote()">Yapıştır</button>
+    </div>
+    <div id="boardArea"></div>
+    <p class="hint" style="margin-top:10px;">Serbest modda notları sürükle. Retro modunda önce kolona tıkla (mavi vurgu), sonra not ekle. Kendi notunu ✕ ile silebilirsin.</p>
+  </section>
+
+  <!-- 2D1Y -->
+  <section class="view" id="ttol">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>2 Doğru 1 Yalan</h2><span class="sync">canlı</span></div>
+    <div class="grid2">
+      <div class="card pad">
+        <h3>Cümlelerini yaz ✍️</h3>
+        <p class="hint" style="margin-bottom:12px;">Kendin hakkında 3 cümle: ikisi doğru, biri yalan. Yalanı işaretle.</p>
+        <div class="stline"><input type="text" class="field" id="tt0" maxlength="120" placeholder="1. cümle"><label class="lie"><input type="radio" name="lie" value="0">yalan</label></div>
+        <div class="stline"><input type="text" class="field" id="tt1" maxlength="120" placeholder="2. cümle"><label class="lie"><input type="radio" name="lie" value="1">yalan</label></div>
+        <div class="stline"><input type="text" class="field" id="tt2" maxlength="120" placeholder="3. cümle"><label class="lie"><input type="radio" name="lie" value="2" checked>yalan</label></div>
+        <button class="btn btn-ink" style="margin-top:6px;" onclick="ttolSubmit()">Gönder</button>
+      </div>
+      <div class="card pad">
+        <h3 id="ttolRightTitle">Oyuncular 👥</h3>
+        <div id="ttolRight" class="plist"><p class="hint">Henüz kimse cümle göndermedi.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KIM BU -->
+  <section class="view" id="whodis">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Kim Bu? 🎭</h2><span class="sync">canlı</span></div>
+    <div class="grid2">
+      <div class="card pad">
+        <h3>Anonim bir gerçek yaz</h3>
+        <p class="hint" style="margin-bottom:12px;">Kendinle ilgili kimsenin bilmediği eğlenceli bir gerçek. Takım kimin yazdığını tahmin edecek.</p>
+        <input type="text" class="field" id="wdFact" maxlength="140" placeholder="örn. Lisede halk oyunları ekibindeydim...">
+        <button class="btn btn-ink" style="margin-top:12px;" onclick="wdSubmit()">Anonim gönder 🤫</button>
+        <p class="hint" style="margin-top:10px;">Tekrar gönderirsen eskisinin yerine geçer.</p>
+      </div>
+      <div class="card pad">
+        <h3 id="wdRightTitle">Gerçekler 🔍</h3>
+        <div id="wdRight" class="plist"><p class="hint">Henüz gerçek gönderilmedi.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BIR KELIMEYLE -->
+  <section class="view" id="oneword">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Bir Kelimeyle 💬</h2><span class="sync">canlı</span></div>
+    <div class="card stage">
+      <div class="cat">BU SPRINT / HAFTA SENİN İÇİN TEK KELİMEYLE NEYDİ?</div>
+      <div style="display:flex; gap:8px; max-width:420px; margin:16px auto 0;">
+        <input class="field" id="owWord" maxlength="20" placeholder="tek kelime..." onkeydown="if(event.key==='Enter')owSubmit()">
+        <button class="btn btn-blue" onclick="owSubmit()">Ekle</button>
+      </div>
+      <div class="cloud" id="owCloud"></div>
+      <div class="ctrls"><button class="btn btn-ghost fac-only" onclick="owReset()">🧹 Temizle</button></div>
+    </div>
+  </section>
+
+  <!-- MOOD -->
+  <section class="view" id="mood">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Duygu Barometresi 🌤️</h2><span class="sync">canlı</span></div>
+    <div class="card stage">
+      <div class="cat">BUGÜN NASILSIN? DOKUN, PAYLAŞ.</div>
+      <div class="moodrow" id="moodBtns"></div>
+      <div id="moodBars" style="max-width:560px; margin:10px auto 0; text-align:left;"></div>
+      <div class="ctrls"><button class="btn btn-ghost fac-only" onclick="moodReset()">🧹 Yeni tur</button></div>
+    </div>
+  </section>
+
+  <!-- HIZLI SORULAR -->
+  <section class="view" id="quickq">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Hızlı Sorular ⚡</h2><span class="sync">herkes aynı kartı görür</span></div>
+    <div class="card stage">
+      <div class="cat">SIRAYLA CEVAPLAYIN</div>
+      <div class="q" id="qqText">...</div>
+      <div class="idx" id="qqIdx"></div>
+      <div class="ctrls">
+        <button class="btn btn-ghost fac-only" onclick="qqMove(-1)">← Önceki</button>
+        <button class="btn btn-ink fac-only" onclick="qqMove(1)">Sonraki →</button>
+        <button class="btn btn-ghost fac-only" onclick="qqShuffle()">🔀 Karıştır</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEN OLSAN -->
+  <section class="view" id="wyr">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Sen Olsan? 🤔</h2><span class="sync">canlı</span></div>
+    <div class="card stage">
+      <div class="cat">HANGİSİNİ SEÇERDİN?</div>
+      <div class="vote2" id="wyrBtns"></div>
+      <div class="idx" id="wyrIdx"></div>
+      <div class="ctrls">
+        <button class="btn btn-blue fac-only" id="wyrReveal" onclick="deckReveal('wyr')">Sonuçları göster</button>
+        <button class="btn btn-ink fac-only" onclick="deckMove('wyr',1)">Sonraki →</button>
+        <button class="btn btn-ghost fac-only" onclick="deckShuffle('wyr')">🔀</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ORTAK NOKTA -->
+  <section class="view" id="common">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Ortak Nokta Avı 🎯</h2><span class="sync">canlı</span></div>
+    <div class="card pad">
+      <h3 id="commonCount">Hepimizin ortak noktası...</h3>
+      <p class="hint" style="margin-bottom:12px;">Konuşun, ortak noktalar bulun ve listeye ekleyin. Hedef: 5 dakikada 10 ortak nokta! Bariz olanlar sayılmaz (örn. "hepimiz insanız" 🙃).</p>
+      <div style="display:flex; gap:8px;">
+        <input class="field" id="cmText" maxlength="100" placeholder="Hepimiz... " onkeydown="if(event.key==='Enter')listAdd('common','cmText')">
+        <button class="btn btn-blue" onclick="listAdd('common','cmText')">Ekle</button>
+      </div>
+      <div class="plist" id="commonList" style="margin-top:14px;"></div>
+      <div class="ctrls" style="justify-content:flex-start;"><button class="btn btn-ghost fac-only" onclick="listReset('common')">🧹 Temizle</button></div>
+    </div>
+  </section>
+  <!-- KELIME ZINCIRI -->
+  <section class="view" id="chain">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Kelime Zinciri 🔗</h2><span class="sync">canlı</span></div>
+    <div class="card pad">
+      <h3 id="chainScore">Zincir: 0 halka</h3>
+      <p class="hint" style="margin-bottom:12px;">Yeni kelime, önceki kelimenin son harfiyle başlamalı ("ğ" ile bitiyorsa bir önceki harf geçerli). Aynı kelime iki kez kullanılamaz, üst üste iki kelimeyi aynı kişi ekleyemez. Zinciri ne kadar uzatabilirsiniz?</p>
+      <div style="display:flex; gap:8px;">
+        <input class="field" id="chWord" maxlength="24" placeholder="kelime..." onkeydown="if(event.key==='Enter')chainAdd()">
+        <button class="btn btn-blue" onclick="chainAdd()">Ekle</button>
+      </div>
+      <div class="chips" id="chainChips" style="margin-top:14px;"></div>
+      <div class="ctrls" style="justify-content:flex-start;"><button class="btn btn-ghost fac-only" onclick="listReset('chain')">🧹 Yeni zincir</button></div>
+    </div>
+  </section>
+
+  <!-- HIKAYE -->
+  <section class="view" id="story">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Hikaye Fabrikası 📖</h2><span class="sync">canlı</span></div>
+    <div class="card pad">
+      <h3>Hikayeyi birlikte yazın</h3>
+      <p class="hint" style="margin-bottom:12px;">Herkes sırayla bir cümle ekler — üst üste iki cümleyi aynı kişi yazamaz. Başlangıç bulamıyorsanız 🎲 ile rastgele bir açılış alın.</p>
+      <div class="storyline" id="storyText"><span class="hint">Henüz hikaye yok. İlk cümleyi sen yaz!</span></div>
+      <div style="display:flex; gap:8px;">
+        <input class="field" id="stWord" maxlength="180" placeholder="Sıradaki cümle..." onkeydown="if(event.key==='Enter')storyAdd()">
+        <button class="btn btn-blue" onclick="storyAdd()">Ekle</button>
+      </div>
+      <div class="ctrls" style="justify-content:flex-start;">
+        <button class="btn btn-ghost" onclick="storyStarter()">🎲 Rastgele açılış</button>
+        <button class="btn btn-ghost fac-only" onclick="listReset('story')">🧹 Yeni hikaye</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAKIM TAHMINI -->
+  <section class="view" id="numg">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Takım Tahmini 🔢</h2><span class="sync">canlı</span></div>
+    <div class="card stage">
+      <div class="cat">HERKES GİZLİCE TAHMİN ETSİN — TAKIM ORTALAMASI GERÇEĞE NE KADAR YAKIN?</div>
+      <div class="q" id="ngQ">...</div>
+      <div style="display:flex; gap:8px; max-width:340px; margin:0 auto;">
+        <input class="field" id="ngGuess" type="number" placeholder="tahminin..." onkeydown="if(event.key==='Enter')ngVote()">
+        <button class="btn btn-blue" onclick="ngVote()">Gönder</button>
+      </div>
+      <div class="pkresults" id="ngResults" style="margin-top:16px;"></div>
+      <div class="pkstat" id="ngStat"></div>
+      <div class="idx" id="ngIdx"></div>
+      <div class="ctrls">
+        <button class="btn btn-green fac-only" onclick="deckReveal('numg')">Tahminleri aç</button>
+        <button class="btn btn-ink fac-only" onclick="deckMove('numg',1)">Sonraki soru →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADAM ASMACA -->
+  <section class="view" id="hangman">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Adam Asmaca 🪢</h2><span class="sync">canlı</span></div>
+    <div class="card stage" id="hmStage"></div>
+  </section>
+
+  <!-- DOGRU MU YANLIS MI -->
+  <section class="view" id="tf">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Doğru mu Yanlış mı? ⚖️</h2><span class="sync">canlı</span></div>
+    <div class="card stage">
+      <div class="cat">OY VERİN, SONRA GERÇEĞİ GÖRÜN</div>
+      <div class="q" id="tfQ">...</div>
+      <div class="vote2" id="tfBtns"></div>
+      <div class="hint" id="tfExp" style="max-width:560px; margin:8px auto 0;"></div>
+      <div class="idx" id="tfIdx"></div>
+      <div class="ctrls">
+        <button class="btn btn-blue fac-only" onclick="deckReveal('tf')">Cevabı göster</button>
+        <button class="btn btn-ink fac-only" onclick="deckMove('tf',1)">Sonraki →</button>
+        <button class="btn btn-ghost fac-only" onclick="deckShuffle('tf')">🔀</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- EMOJI -->
+  <section class="view" id="emoji">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Emoji Sineması 🎬</h2><span class="sync">herkes aynı kartı görür</span></div>
+    <div class="card stage">
+      <div class="cat" id="emCat">FİLM</div>
+      <div class="big" id="emEmo">🎬</div>
+      <div class="ans hidden-ans" id="emAns">?</div>
+      <div class="idx" id="emIdx"></div>
+      <div class="ctrls">
+        <button class="btn btn-ghost fac-only" onclick="deckMove('emoji',-1)">← Önceki</button>
+        <button class="btn btn-blue fac-only" id="emReveal" onclick="deckReveal('emoji')">Cevabı göster</button>
+        <button class="btn btn-ink fac-only" onclick="deckMove('emoji',1)">Sonraki →</button>
+        <button class="btn btn-ghost fac-only" onclick="deckShuffle('emoji')">🔀</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CODENAMES -->
+  <section class="view" id="codenames">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Kod Adları 🕵️</h2><span class="sync">ortak tahta</span></div>
+    <div class="cnbar">
+      <button class="btn btn-ink fac-only" onclick="cnNew()">Yeni oyun</button>
+      <label style="display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:700;">
+        <input type="checkbox" id="spyToggle" onchange="cnRender()"> İpucu ustası görünümü 🕶️
+      </label>
+      <div class="score" style="margin-left:auto;"><span class="b" id="cnBlue">🔵 0</span><span class="r" id="cnRed">🔴 0</span><span id="cnMsg" style="color:var(--muted); font-weight:500;"></span></div>
+    </div>
+    <div class="cngrid" id="cnGrid"></div>
+    <p class="hint" style="margin-top:10px;">Her takımdan bir ipucu ustası 🕶️ modunu açar. Ajanlar karta dokununca kart herkes için açılır. Siyah kart = anında mağlubiyet.</p>
+  </section>
+
+  <!-- POKER -->
+  <section class="view" id="poker">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Planlama Pokeri 🃏</h2><span class="sync">canlı</span></div>
+    <div class="card pad" style="text-align:center;">
+      <h3 id="pkTitle">Kartını seç</h3>
+      <div class="pkcards" id="pkCards"></div>
+      <div class="ctrls">
+        <button class="btn btn-green fac-only" onclick="pokerReveal()">Kartları aç</button>
+        <button class="btn btn-ghost fac-only" onclick="pokerNewRound()">Yeni tur</button>
+      </div>
+      <div class="pkresults" id="pkResults"></div>
+      <div class="pkstat" id="pkStat"></div>
+    </div>
+  </section>
+
+  <!-- BESLE OYLA -->
+  <section class="view" id="fist">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Beşle Oyla ✋</h2><span class="sync">canlı</span></div>
+    <div class="card pad" style="text-align:center;">
+      <input class="field fac-only" id="fsLabel" maxlength="140" placeholder="Oylanacak konu / karar... (herkese görünür)" style="max-width:560px; margin:0 auto 6px; text-align:center;" onchange="fistLabel()">
+      <button class="btn btn-ghost fac-only" style="margin-bottom:6px;" onclick="fistPreset()">🎯 Sprint Güveni önerisi</button>
+      <p class="hint">1 = Kesinlikle karşıyım · 3 = Çekincelerim var ama uyarım · 5 = Kesinlikle varım</p>
+      <div class="pkcards" id="fsCards"></div>
+      <div class="ctrls">
+        <button class="btn btn-green fac-only" onclick="fistReveal()">Oyları aç</button>
+        <button class="btn btn-ghost fac-only" onclick="fistNewRound()">Yeni tur</button>
+      </div>
+      <div class="pkresults" id="fsResults"></div>
+      <div class="pkstat" id="fsStat"></div>
+    </div>
+  </section>
+
+  <!-- TAKIM SAGLIGI -->
+  <section class="view" id="health">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Takım Sağlığı 🩺</h2><span class="sync">canlı · sonuçlar anonim</span></div>
+    <div class="card pad">
+      <h3>Her alanı 🟢🟡🔴 ile puanla</h3>
+      <p class="hint" style="margin-bottom:8px;">Squad health check: senin oyların anonim toplanır, sağdaki bar takımın toplamını gösterir. Kırmızı ağırlıklı alanları retroda konuşun.</p>
+      <div id="healthRows"></div>
+      <div class="ctrls" style="justify-content:flex-start;">
+        <span class="hint" id="healthWho" style="align-self:center;"></span>
+        <button class="btn btn-ghost fac-only" onclick="healthReset()">🧹 Yeni anket</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEAN COFFEE -->
+  <section class="view" id="leancoffee">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Lean Coffee ☕</h2><span class="sync">canlı</span></div>
+    <div class="card pad">
+      <h3>Konu ekle, oyla, sırayla konuş</h3>
+      <p class="hint" style="margin-bottom:10px;">Herkes konu ekler ve oy verir. En çok oy alan konu üstte çıkar; facilitator "Sıradaki konu" ile sırayla ilerletir.</p>
+      <div id="lcCurrent"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input class="field" id="lcTopic" maxlength="120" placeholder="Konu öner..." onkeydown="if(event.key==='Enter')lcAdd()">
+        <button class="btn btn-blue" onclick="lcAdd()">Ekle</button>
+      </div>
+      <div class="plist" id="lcList" style="margin-top:14px;"></div>
+      <div class="ctrls" style="justify-content:flex-start;">
+        <button class="btn btn-ink fac-only" onclick="lcNext()">➡️ Sıradaki konu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAILBOAT RETRO -->
+  <section class="view" id="sailboat">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Yelkenli Retro ⛵</h2><span class="sync">canlı</span></div>
+    <div class="toolrow">
+      <input class="field" id="sailText" maxlength="140" placeholder="Notunu yaz..." onkeydown="if(event.key==='Enter')sailAdd()">
+      <button class="btn btn-blue" onclick="sailAdd()">Yapıştır</button>
+      <button class="btn btn-ghost fac-only" onclick="sailReset()">🧹 Yeni tahta</button>
+    </div>
+    <div class="sailgrid" id="sailGrid"></div>
+    <p class="hint" style="margin-top:10px;">Önce bir çeyreği seç (mavi vurgu), sonra not ekle.</p>
+  </section>
+
+  <!-- KUDOS WALL -->
+  <section class="view" id="kudos">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Teşekkür Duvarı 🙌</h2><span class="sync">canlı</span></div>
+    <div class="card pad">
+      <h3>Bir takım arkadaşına teşekkür et</h3>
+      <p class="hint" style="margin-bottom:10px;">Kime ve neden teşekkür ediyorsun? Kısa ve samimi olsun.</p>
+      <div style="display:flex; gap:8px;">
+        <input class="field" id="kdText" maxlength="160" placeholder="örn. Ayşe'ye teşekkürler, demo öncesi bana yardım ettiği için 🙏" onkeydown="if(event.key==='Enter')kdAdd()">
+        <button class="btn btn-blue" onclick="kdAdd()">Gönder</button>
+      </div>
+      <div class="kudoswall" id="kdWall" style="margin-top:16px;"></div>
+      <div class="ctrls" style="justify-content:flex-start;"><button class="btn btn-ghost fac-only" onclick="kdReset()">🧹 Duvarı temizle</button></div>
+    </div>
+  </section>
+
+  <!-- SPRINT AKIŞI -->
+  <section class="view" id="sprintflow">
+    <div class="backbar"><button class="btn btn-ghost" onclick="openView('home')">← Oyunlar</button><h2>Sprint Akışı 🌊</h2><span class="sync">canlı</span></div>
+    <div class="card pad">
+      <h3>İşlerinizi güne güne planlayın</h3>
+      <p class="hint" style="margin-bottom:12px;">Gerçek (veya örnek) işlerinizi ekleyin, boyut seçin, hangi sprint gününde yapılacağını işaretleyin. Alttaki grafik işlerin güne göre nasıl dağıldığını gösterir — son güne yığılma riskini birlikte görün.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input class="field" id="sfText" maxlength="80" placeholder="İş adı... (örn. Ödeme akışı analizi)" style="flex:2; min-width:200px;" onkeydown="if(event.key==='Enter')sfAdd()">
+        <div class="sfsizes" id="sfSizes"></div>
+        <button class="btn btn-blue" onclick="sfAdd()">Ekle</button>
+      </div>
+      <div class="sfdays" id="sfDays" style="margin-top:16px;"></div>
+      <h3 style="margin-top:22px;">Yük Dağılımı</h3>
+      <div id="sfLoad"></div>
+      <p class="hint" id="sfInsight" style="margin-top:10px; font-size:13.5px;"></p>
+      <div class="ctrls" style="justify-content:flex-start;"><button class="btn btn-ghost fac-only" onclick="sfReset()">🧹 Yeni sprint</button></div>
+    </div>
+  </section>
+</div>
+<div id="toast"></div>
+<div id="flowFloat">
+  <span id="flowLabel"></span>
+  <button onclick="flowGoto()" id="flowGotoBtn">Git →</button>
+  <button onclick="flowAdvance()" id="flowNextBtn" class="fac-only">Sıradaki →</button>
+  <button onclick="flowEnd()" id="flowEndBtn" class="fac-only">✕</button>
+</div>
+<div id="timerFloat">
+  <span class="tnum" id="tfNum">--:--</span>
+  <button onclick="timerCancel()" id="tfCancelBtn">✕</button>
+</div>
+<div class="timerpicker" id="timerPicker">
+  <button onclick="timerStart(60)">1 dk</button><button onclick="timerStart(180)">3 dk</button>
+  <button onclick="timerStart(300)">5 dk</button><button onclick="timerStart(600)">10 dk</button>
+</div>
+<script>
+/* ================= Supabase depolama katmanı =================
+   window.storage ile birebir aynı arayüz (get/set/delete/list) — alttaki
+   19 oyunun tamamı bunun Claude.ai'nin kendi storage'ı mı yoksa Supabase mi
+   olduğunu bilmez, hiç değişmeden çalışır. */
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.storage = {
+  async get(key){
+    const { data, error } = await sb.from('tp_kv').select('v').eq('k', key).maybeSingle();
+    if (error || !data) return null;
+    return { key, value: data.v };
+  },
+  async set(key, value){
+    const { error } = await sb.from('tp_kv').upsert({ k: key, v: value, updated_at: new Date().toISOString() });
+    if (error) throw new Error(error.message);
+    return { key, value };
+  },
+  async delete(key){
+    const { error } = await sb.from('tp_kv').delete().eq('k', key);
+    if (error) return null;
+    return { key, deleted: true };
+  },
+  async list(prefix){
+    let q = sb.from('tp_kv').select('k');
+    if (prefix) q = q.like('k', prefix + '%');
+    const { data, error } = await q;
+    if (error) return null;
+    return { keys: (data || []).map(r => r.k), prefix };
+  }
+};
+</script>
+<script>
+/* ================= core ================= */
+let ME='', ROOM='', VIEW='join', pollTimer=null;
+const G={}; /* oyun durumları */
+
+/* ================= dil / i18n ================= */
+let LANG='tr';
+const I18N={"Odadan çık": "Leave room", "Hoş geldin! 👋": "Welcome! 👋", "Scrum master'lar ve agile takımlar için oyun odası — 18 oyun, 5 tema.": "A game room for scrum masters and agile teams — 18 games, 5 themes.", "Adın": "Your name", "örn. Bilal": "e.g. Alex", "Oda kodu": "Room code", "örn. SOMPO": "e.g. ACME", "🎲 Rastgele": "🎲 Random", "Odaya gir →": "Enter room →", "Takım arkadaşların aynı oda koduyla girince aynı oyunları görür (birkaç saniyede bir eşitlenir). Yazdıkların, oda kodunu bilen herkes tarafından görülebilir — gizli bilgi yazmayın.": "Teammates who join with the same room code see the same games (synced every few seconds). Anything you type can be seen by anyone who knows the room code — don't write sensitive info.", "Adını yaz": "Enter your name", "Oda kodu gerekli (harf ve rakam)": "Room code required (letters and numbers)", "← Oyunlar": "← Games", "canlı": "live", "herkes aynı kartı görür": "everyone sees the same card", "ortak tahta": "shared board", "canlı · sonuçlar anonim": "live · results anonymous", "Ekle": "Add", "Gönder": "Send", "← Önceki": "← Previous", "Sonraki →": "Next →", "🔀 Karıştır": "🔀 Shuffle", "Yeni tur": "New round", "Henüz oy yok.": "No votes yet.", "Ortalama: ": "Average: ", "Önce bir şey yaz": "Write something first", "Bir sayı gir": "Enter a number", "Ortak Pano": "Shared Board", "Serbest": "Free", "Retro": "Retro", "Notunu yaz...": "Write your note...", "Yapıştır": "Stick it", "Serbest modda notları sürükle. Retro modunda önce kolona tıkla (mavi vurgu), sonra not ekle. Kendi notunu ✕ ile silebilirsin.": "In free mode, drag notes around. In retro mode, click a column first (blue highlight), then add a note. You can delete your own note with ✕.", "İyi gitti 👍": "Went well 👍", "Geliştirilebilir 🔧": "Could improve 🔧", "Aksiyon 🎯": "Action 🎯", "2 Doğru 1 Yalan": "Two Truths One Lie", "Cümlelerini yaz ✍️": "Write your statements ✍️", "Kendin hakkında 3 cümle: ikisi doğru, biri yalan. Yalanı işaretle.": "Three statements about yourself: two true, one false. Mark the lie.", "1. cümle": "Statement 1", "yalan": "lie", "2. cümle": "Statement 2", "3. cümle": "Statement 3", "Oyuncular 👥": "Players 👥", "Henüz kimse cümle göndermedi.": "No one has submitted statements yet.", "3 cümleyi de doldur": "Fill in all 3 statements", "Cümlelerin kaydedildi 🤫": "Your statements are saved 🤫", " — hangisi yalan?": " — which one is the lie?", "YALAN 🤥": "LIE 🤥", "DOĞRU ✓": "TRUE ✓", "senin tahminin": "your guess", " oy": " votes", "Yalanı açıkla": "Reveal the lie", " kişi oy verdi": " people voted", " (sen)": " (you)", "açıklandı": "revealed", "Kim Bu? 🎭": "Who Is It? 🎭", "Anonim bir gerçek yaz": "Write an anonymous fact", "Kendinle ilgili kimsenin bilmediği eğlenceli bir gerçek. Takım kimin yazdığını tahmin edecek.": "A fun fact about yourself that nobody knows. The team will guess who wrote it.", "örn. Lisede halk oyunları ekibindeydim...": "e.g. I was on my school folk dance team...", "Anonim gönder 🤫": "Send anonymously 🤫", "Tekrar gönderirsen eskisinin yerine geçer.": "Sending again replaces your previous one.", "Gerçekler 🔍": "Facts 🔍", "Henüz gerçek gönderilmedi.": "No facts submitted yet.", "Bir gerçek yaz": "Write a fact", "Anonim gönderildi 🎭": "Sent anonymously 🎭", "Kim yazdı?": "Who wrote it?", "tahminin": "your guess", "Yazarı açıkla": "Reveal the author", " tahmin": " guesses", " · bu senin cümlen 🤫": " · this is your fact 🤫", "Bir Kelimeyle 💬": "In One Word 💬", "BU SPRINT / HAFTA SENİN İÇİN TEK KELİMEYLE NEYDİ?": "WHAT WAS THIS SPRINT / WEEK FOR YOU, IN ONE WORD?", "tek kelime...": "one word...", "🧹 Temizle": "🧹 Clear", "Kelimeler burada belirecek...": "Words will appear here...", "Tek kelime yaz": "Write one word", "Duygu Barometresi 🌤️": "Mood Barometer 🌤️", "BUGÜN NASILSIN? DOKUN, PAYLAŞ.": "HOW ARE YOU TODAY? TAP TO SHARE.", "🧹 Yeni tur": "🧹 New round", "Harika": "Great", "İyi": "Good", "İdare eder": "Okay", "Yorgun": "Tired", "Zorlanıyorum": "Struggling", "Hızlı Sorular ⚡": "Quick Questions ⚡", "SIRAYLA CEVAPLAYIN": "ANSWER IN TURN", "Sen Olsan? 🤔": "Would You Rather? 🤔", "HANGİSİNİ SEÇERDİN?": "WHICH WOULD YOU CHOOSE?", "Sonuçları göster": "Show results", " kişi": " people", " (gizli)": " (hidden)", "Ortak Nokta Avı 🎯": "Common Ground Hunt 🎯", "Hepimizin ortak noktası...": "What we all have in common...", "Konuşun, ortak noktalar bulun ve listeye ekleyin. Hedef: 5 dakikada 10 ortak nokta! Bariz olanlar sayılmaz (örn. \"hepimiz insanız\" 🙃).": "Talk, find things you have in common, and add them to the list. Goal: 10 things in 5 minutes! Obvious ones don't count (e.g. \"we're all human\" 🙃).", "Hepimiz... ": "We all... ", "ortak nokta bulundu": " things in common found", " — hedef tamam! 🎉": " — goal reached! 🎉", "İlk ortak noktayı sen ekle!": "Add the first one!", "Kelime Zinciri 🔗": "Word Chain 🔗", "Zincir: 0 halka": "Chain: 0 links", "Yeni kelime, önceki kelimenin son harfiyle başlamalı (\"ğ\" ile bitiyorsa bir önceki harf geçerli). Aynı kelime iki kez kullanılamaz, üst üste iki kelimeyi aynı kişi ekleyemez. Zinciri ne kadar uzatabilirsiniz?": "The new word must start with the last letter of the previous word. No word can be used twice, and the same person can't add two words in a row. How long can you make the chain?", "kelime...": "word...", "🧹 Yeni zincir": "🧹 New chain", "🔗 Zincir: ": "🔗 Chain: ", " halka": " links", " — efsane! 🏆": " — legendary! 🏆", "İlk kelimeyi yaz, zincir başlasın.": "Write the first word to start the chain.", "Üst üste iki kelime ekleyemezsin — sıra arkadaşında 😄": "You can't add two words in a row — it's someone else's turn 😄", " ile başlamalı!": " — must start with this!", "Bu kelime zaten kullanıldı!": "This word has already been used!", "Hikaye Fabrikası 📖": "Story Factory 📖", "Hikayeyi birlikte yazın": "Write the story together", "Herkes sırayla bir cümle ekler — üst üste iki cümleyi aynı kişi yazamaz. Başlangıç bulamıyorsanız 🎲 ile rastgele bir açılış alın.": "Everyone adds a sentence in turn — the same person can't write two in a row. Can't think of an opener? Get a random one with 🎲.", "Henüz hikaye yok. İlk cümleyi sen yaz!": "No story yet. Write the first sentence!", "Sıradaki cümle...": "Next sentence...", "🎲 Rastgele açılış": "🎲 Random opener", "🧹 Yeni hikaye": "🧹 New story", "Üst üste iki cümle yazamazsın — sıra arkadaşında 😄": "You can't write two sentences in a row — it's someone else's turn 😄", "Hikaye zaten başladı!": "The story has already started!", "Henüz hikaye yok. İlk cümleyi sen yaz ya da 🎲 ile başla!": "No story yet. Write the first sentence or start with 🎲!", "Takım Tahmini 🔢": "Team Guess 🔢", "HERKES GİZLİCE TAHMİN ETSİN — TAKIM ORTALAMASI GERÇEĞE NE KADAR YAKIN?": "EVERYONE GUESSES SECRETLY — HOW CLOSE IS THE TEAM AVERAGE TO REALITY?", "tahminin...": "your guess...", "Tahminleri aç": "Reveal guesses", "Sonraki soru →": "Next question →", "Henüz tahmin yok.": "No guesses yet.", "Gerçek: ": "Actual: ", " · Takım ortalaması: ": " · Team average: ", " tahmin geldi 🤫": " guesses in 🤫", "Adam Asmaca 🪢": "Hangman 🪢", "KELİMEYİ BELİRLE — TAKIM ÇÖZSÜN": "PICK A WORD — LET THE TEAM SOLVE IT", "gizli kelime...": "secret word...", "Başlat": "Start", "Kelimeyi yazan kişi tahmin etmez, sadece izler ve gülümser 😏 6 yanlış hakkınız var.": "The person who set the word doesn't guess — just watches and smiles 😏 You have 6 wrong guesses.", " KELİMEYİ BELİRLEDİ — ": " PICKED THE WORD — ", " CAN KALDI": " LIVES LEFT", "🎉 Takım kazandı!": "🎉 The team won!", "💀 Asıldık! Kelime: ": "💀 Hanged! The word was: ", "Kelimen: ": "Your word: ", " (sadece sen görüyorsun*)": " (only you can see this*)", "🔄 Yeni kelime": "🔄 New word", "Yanlışlar: ": "Wrong guesses: ", "En az 3 harfli bir kelime yaz": "Enter a word with at least 3 letters", "Kelime hazır! Takım tahmin etsin 🤫": "Word is set! Let the team guess 🤫", "Takım Sağlığı 🩺": "Team Health 🩺", "Her alanı 🟢🟡🔴 ile puanla": "Rate each area 🟢🟡🔴", "Squad health check: senin oyların anonim toplanır, sağdaki bar takımın toplamını gösterir. Kırmızı ağırlıklı alanları retroda konuşun.": "Squad health check: your votes are collected anonymously, the bar on the right shows the team total. Discuss the red-heavy areas in retro.", "🧹 Yeni anket": "🧹 New survey", "Teslimat & Hız": "Delivery & Speed", "Takım İçi İletişim": "Team Communication", "Öğrenme & Gelişim": "Learning & Growth", "Süreçler & Araçlar": "Processes & Tools", "İş-Yaşam Dengesi": "Work-Life Balance", "Eğlence & Moral": "Fun & Morale", "Doğru mu Yanlış mı? ⚖️": "True or False? ⚖️", "OY VERİN, SONRA GERÇEĞİ GÖRÜN": "VOTE, THEN SEE THE TRUTH", "Cevabı göster": "Reveal the answer", "✅ Doğru": "✅ True", "❌ Yanlış": "❌ False", "✅ DOĞRU — ": "✅ TRUE — ", "❌ YANLIŞ — ": "❌ FALSE — ", "Emoji Sineması 🎬": "Emoji Cinema 🎬", "Film": "Movie", "Dizi": "Series", "Kod Adları 🕵️": "Codenames 🕵️", "Yeni oyun": "New game", "İpucu ustası görünümü 🕶️": "Spymaster view 🕶️", "Her takımdan bir ipucu ustası 🕶️ modunu açar. Ajanlar karta dokununca kart herkes için açılır. Siyah kart = anında mağlubiyet.": "One spymaster per team turns on 🕶️ mode. When agents tap a card, it flips for everyone. The black card = instant loss.", "\"Yeni oyun\" ile 5×5 tahtayı oluştur.": "Tap \"New game\" to build the 5×5 board.", "🔴 Kırmızı": "🔴 Red", "🔵 Mavi": "🔵 Blue", " takım başlıyor!": " team goes first!", "💀 Suikastçı! Kartı açan takım kaybetti.": "💀 Assassin! The team that revealed it loses.", "🏆 ": "🏆 ", " kazandı!": " won!", "Kırmızı": "Red", "Mavi": "Blue", "🔴 önce": "🔴 goes first", "🔵 önce": "🔵 goes first", "Planlama Pokeri 🃏": "Planning Poker 🃏", "Kartını seç": "Pick your card", "Kartları aç": "Reveal cards", "Tur ": "Round ", " — kartını seç": " — pick your card", " — 😬 görüş ayrılığı büyük, konuşun!": " — 😬 big disagreement, talk it out!", " ✅": " ✅", "Sayısal oy yok ☕": "No numeric votes ☕", " kişi oy verdi 🤫": " people voted 🤫", "Kartlar açık — yeni tur başlat": "Cards are revealed — start a new round", "Beşle Oyla ✋": "Fist of Five ✋", "Oylanacak konu / karar... (herkese görünür)": "Topic / decision to vote on... (visible to everyone)", "1 = Kesinlikle karşıyım · 3 = Çekincelerim var ama uyarım · 5 = Kesinlikle varım": "1 = Strongly against · 3 = I have concerns but I'll go along · 5 = Fully on board", "Oyları aç": "Reveal votes", " — ⚠️ düşük oy verenleri dinleyin": " — ⚠️ listen to the low votes", " ✅ takım hizalı": " ✅ team aligned", " oy geldi 🤫": " votes in 🤫", "🧊 Kaynaşma": "🧊 Icebreakers", "Güne veya toplantıya ısınmak için 2-5 dakikalık ice breaker'lar.": "2-5 minute icebreakers to warm up a session or the day.", "👥 Takımı Tanıma": "👥 Getting to Know the Team", "Birbirinizi bir insan olarak tanıyın — sürprizlere hazır olun.": "Get to know each other as people — expect surprises.", "🤝 Ekip Çalışması": "🤝 Teamwork", "Birlikte üretme, birlikte tahmin etme, birlikte kazanma.": "Create together, guess together, win together.", "📋 Agile & Retro": "📋 Agile & Retro", "Scrum master'ın alet çantası: retro, tahmin, hizalanma, sağlık.": "The scrum master's toolbox: retro, estimation, alignment, health.", "🎉 Eğlence": "🎉 Fun", "Sadece gülmek için. Sprint bitti, hak ettiniz.": "Just for laughs. The sprint's over, you've earned it.", "Herkes bugünkü modunu paylaşır — check-in için 60 saniyelik klasik.": "Everyone shares today's mood — a 60-second classic check-in.", "Kart destesinden rastgele sohbet soruları. Sırayla cevaplayın.": "Random conversation questions from a card deck. Answer in turn.", "İki seçenek, gizli oylama, sonra takımın bölünmüşlüğünü görün.": "Two options, secret vote, then see how the team is split.", "5 dakikada 10 ortak nokta bulabilecek misiniz?": "Can you find 10 things in common in 5 minutes?", "Üç cümle yaz, biri yalan. Takım yalanı avlasın.": "Write three statements, one is a lie. Let the team hunt it down.", "Anonim gerçekler — takım kimin yazdığını tahmin eder.": "Anonymous facts — the team guesses who wrote each one.", "Sprint'i tek kelimeyle özetle; kelime bulutu oluşsun.": "Sum up the sprint in one word to build a word cloud.", "Son harften yeni kelime. Zinciri birlikte uzatın.": "A new word from the last letter. Extend the chain together.", "Cümle cümle ortak hikaye. Nereye gideceği belli olmaz.": "A shared story, sentence by sentence. No telling where it'll go.", "Kalabalığın bilgeliği: ortalamanız gerçeğe ne kadar yakın?": "Wisdom of the crowd: how close is your average to reality?", "Yapışkan notlar + retro modu (İyi gitti / Geliştirilebilir / Aksiyon).": "Sticky notes + retro mode (Went well / Could improve / Action).", "Story point tahmini: gizli oy, birlikte açılış, ortalama.": "Story point estimation: secret votes, reveal together, average.", "Squad health check: 6 alan, 🟢🟡🔴, anonim sonuç.": "Squad health check: 6 areas, 🟢🟡🔴, anonymous results.", "Fist of five: karara ne kadar varsınız? 1-5 gizli oy.": "Fist of five: how on board are you? 1-5 secret vote.", "Emojilerden film ve dizi tahmin et. 40 kart.": "Guess movies and shows from emoji. 40 cards.", "Türkçe kelime havuzuyla klasik Codenames, ortak tahta.": "Classic Codenames with an English word pool, shared board.", "Biri kelimeyi belirler, takım harf harf çözer. 6 can.": "One person picks a word, the team solves it letter by letter. 6 lives.", "Şaşırtıcı bilgiler: önce oyla, sonra gerçeği öğren.": "Surprising facts: vote first, then learn the truth.", "Duygu Barometresi": "Mood Barometer", "Hızlı Sorular": "Quick Questions", "Sen Olsan?": "Would You Rather?", "Ortak Nokta Avı": "Common Ground Hunt", "Kim Bu?": "Who Is It?", "Bir Kelimeyle": "In One Word", "Kelime Zinciri": "Word Chain", "Hikaye Fabrikası": "Story Factory", "Takım Tahmini": "Team Guess", "Planlama Pokeri": "Planning Poker", "Takım Sağlığı": "Team Health", "Beşle Oyla": "Fist of Five", "Kod Adları": "Codenames", "Adam Asmaca": "Hangman", "Doğru mu Yanlış mı?": "True or False?", "Takım Panosu — Agile Oyun Odası": "Team Board — Agile Game Room", "Çay mı kahve mi — ve neden?": "Tea or coffee — and why?", "Süper gücün olsa ne olurdu?": "If you had a superpower, what would it be?", "Hayatının filmi çekilse adı ne olurdu?": "If a movie was made of your life, what would it be called?", "Çocukken ne olmak istiyordun?": "What did you want to be when you grew up?", "Işınlanma mı zihin okuma mı?": "Teleportation or mind reading?", "En sevdiğin sokak lezzeti ne?": "What's your favorite street food?", "Bir günlüğüne biriyle yer değişebilsen kim olurdu?": "If you could swap places with someone for a day, who would it be?", "En garip yeteneğin ne?": "What's your weirdest talent?", "Hangi diziyi baştan sona birden fazla kez bitirdin?": "Which show have you rewatched start to finish more than once?", "Sabah insanı mısın, gece insanı mı?": "Are you a morning person or a night owl?", "İlk maaşınla ne almıştın?": "What did you buy with your first paycheck?", "Karaoke gecesinde hangi şarkıyı söylerdin?": "What song would you sing at karaoke night?", "Yarın tüm işler iptal olsa bugün ne yapardın?": "If all work was cancelled tomorrow, what would you do today?", "En son öğrendiğin ilginç bilgi ne?": "What's the last interesting fact you learned?", "İş dışında hangi konuda 1 saat sunum yapabilirsin?": "What non-work topic could you give a 1-hour talk on?", "Hayvan olsan hangi hayvan olurdun?": "If you were an animal, which one would you be?", "En sevdiğin çocukluk oyunu neydi?": "What was your favorite childhood game?", "Şu an bilet alsan ilk hangi ülkeye giderdin?": "If you booked a flight right now, where would you go first?", "Kahvaltıda tatlı mı tuzlu mu?": "Sweet or savory breakfast?", "Bir startup kursan ne yapardı?": "If you started a company, what would it do?", "Telefonunda en çok kullandığın 3 uygulama ne?": "What are the 3 apps you use most on your phone?", "Hiç unutamadığın bir öğretmenin var mı, neden?": "Is there a teacher you've never forgotten, and why?", "Evindeki en değerli (para değil, anlam olarak) eşya ne?": "What's the most valuable item in your home — in meaning, not money?", "Bir yıl boyunca tek yemek yiyebilsen ne seçerdin?": "If you could eat only one meal for a year, what would you choose?", "Takım olarak bir tatile çıksak nereye gitmeliyiz?": "If the team went on a trip, where should we go?", "En büyük mutfak felaketin neydi?": "What's your biggest kitchen disaster?", "Hangi ünlüyle bir kahve içmek isterdin?": "Which celebrity would you like to grab a coffee with?", "Bugüne kadar aldığın en iyi tavsiye ne?": "What's the best advice you've ever received?", "Işınlanabilmek": "Be able to teleport", "Uçabilmek": "Be able to fly", "Her yere 10 dk geç kalmak": "Be 10 min late everywhere", "Her yere 2 saat erken gitmek": "Be 2 hours early everywhere", "Denizsiz dağ evi": "A mountain house with no sea", "Dağsız sahil evi": "A beach house with no mountains", "Sadece sesli mesaj atabilmek": "Only be able to send voice messages", "Sadece yazılı mesaj atabilmek": "Only be able to send text messages", "Geçmişe gitmek": "Travel to the past", "Geleceğe gitmek": "Travel to the future", "Toplantısız ama 100 e-postalı gün": "A day with no meetings but 100 emails", "E-postasız ama 6 toplantılı gün": "A day with no emails but 6 meetings", "Kışın sıcak içecek yasak": "No hot drinks in winter", "Yazın dondurma yasak": "No ice cream in summer", "Hayvanlarla konuşabilmek": "Be able to talk to animals", "Tüm dilleri bilmek": "Know every human language", "Günde 5 dk her şeyi bilmek": "Know everything for 5 min a day", "Bir konuda dünyanın en iyisi olmak": "Be the world's best at one thing", "Sonsuz tatil": "Endless vacation", "Hayalindeki iş": "Your dream job", "Bir ay WiFi yok": "No WiFi for a month", "Bir ay kahve/çay yok": "No coffee/tea for a month", "Şarkı söyleyerek konuşmak": "Speak only by singing", "Dans ederek yürümek": "Walk only by dancing", "Geçmişteki bir hatanı silmek": "Erase one past mistake", "Geleceği bir kez görmek": "See the future once", "Her sabah 05:00'te kalkmak": "Wake up at 5 AM every day", "Her gece 03:00'te yatmak": "Go to bed at 3 AM every night", "Kamera hep açık": "Camera always on", "Mikrofon hep açık": "Microphone always on", "Hep aynı yemeği yemek": "Eat the same meal forever", "Her öğün sürpriz yemek (seçemezsin)": "A surprise meal every time (no choice)", "Zengin ama kimse tanımıyor": "Rich but nobody knows you", "Meşhur ama zengin değil": "Famous but not rich", "Sadece film izleyebilmek": "Only be able to watch movies", "Sadece dizi izleyebilmek": "Only be able to watch TV shows", "Klavye yok, her şey sesli": "No keyboard, everything by voice", "Ses yok, her şey yazılı": "No sound, everything by text", "10 yıl önceki sana mesaj": "Message yourself 10 years ago", "10 yıl sonraki senden mesaj": "Get a message from yourself 10 years from now", "Bal, uygun saklanırsa binlerce yıl bozulmaz.": "Honey can last thousands of years if stored properly.", "Mısır piramitlerinde bulunan bal hâlâ yenilebilir durumdaydı.": "Honey found in Egyptian pyramids was still edible.", "Everest, Dünya'nın merkezine en uzak noktadır.": "Everest is the point farthest from the Earth's center.", "Ekvator şişkinliği yüzünden bu unvan Ekvador'daki Chimborazo'ya ait.": "Because of the equatorial bulge, that title belongs to Chimborazo in Ecuador.", "Ahtapotların üç kalbi vardır.": "Octopuses have three hearts.", "İki kalp solungaçlara, biri vücuda kan pompalar.": "Two hearts pump blood to the gills, one to the body.", "Yıldırım aynı yere iki kez düşmez.": "Lightning never strikes the same place twice.", "Düşer — Empire State binasına yılda ~25 kez düşüyor.": "It does — the Empire State Building gets hit ~25 times a year.", "İnsan DNA'sının yaklaşık %60'ı muzunkiyle aynıdır.": "About 60% of human DNA is the same as a banana's.", "Temel hücre işlevleri ortak genlerle çalışır.": "Basic cell functions run on shared genes.", "Çin Seddi uzaydan çıplak gözle görülür.": "The Great Wall of China is visible from space with the naked eye.", "Astronotlar göremediklerini defalarca doğruladı.": "Astronauts have repeatedly confirmed they can't see it.", "Flamingolar pembe doğar.": "Flamingos are born pink.", "Gri doğarlar; rengi yedikleri karidesler ve alglerden alırlar.": "They're born gray; they get their color from the shrimp and algae they eat.", "Venüs'te bir gün, bir yıldan uzundur.": "A day on Venus is longer than its year.", "Kendi ekseninde dönüşü 243 gün, Güneş turu 225 gün.": "Its rotation takes 243 days, its orbit around the Sun 225 days.", "İnsanlar beyinlerinin sadece %10'unu kullanır.": "Humans only use 10% of their brain.", "Beynin neredeyse tamamı aktif olarak kullanılır — bu bir şehir efsanesi.": "Nearly the whole brain is actively used — this is an urban myth.", "Köpekbalıkları, ağaçlardan daha eskidir.": "Sharks are older than trees.", "Köpekbalıkları ~450, ağaçlar ~350 milyon yıldır var.": "Sharks have existed for ~450 million years, trees for ~350 million.", "Botanik olarak muz bir üzümsü meyvedir (berry), çilek ise değildir.": "Botanically, a banana is a berry, but a strawberry isn't.", "Botanik sınıflandırma sezgilere pek uymaz.": "Botanical classification doesn't match intuition very well.", "ABD kurulduğunda Osmanlı İmparatorluğu hâlâ ayaktaydı.": "The Ottoman Empire still existed when the US was founded.", "Osmanlı 1922'ye, ABD'nin kuruluşu 1776'ya dayanır.": "The Ottomans lasted until 1922; the US was founded in 1776.", "Ses, uzay boşluğunda yayılmaz.": "Sound doesn't travel through the vacuum of space.", "Ses dalgaları taşıyıcı bir ortam (hava, su vb.) ister.": "Sound waves need a medium to travel through (air, water, etc.).", "Bukalemunlar renk değiştirir çünkü esas amaçları kamuflajdır.": "Chameleons change color mainly for camouflage.", "Renk değişimi çoğunlukla iletişim ve ısı kontrolü içindir.": "Color change is mostly for communication and temperature control.", "Kahve çekirdeği aslında bir meyvenin çekirdeğidir.": "A coffee bean is actually the pit of a fruit.", "Kahve kirazı denen meyvenin tohumudur.": "It's the seed of a fruit called the coffee cherry.", "İstanbul, iki kıtaya yayılan tek megakenttir.": "Istanbul is the only megacity spanning two continents.", "Hem Avrupa hem Asya yakasıyla benzersizdir.": "It's unique with both a European and an Asian side.", "Penguenler Kuzey Kutbu'nda yaşar.": "Penguins live at the North Pole.", "Penguenler güney yarımkürede yaşar; kutup ayılarıyla hiç karşılaşmazlar.": "Penguins live in the southern hemisphere; they never encounter polar bears.", "Altın, yenilebilir bir maddedir.": "Gold is an edible substance.", "Saf altın tepkimeye girmez; E175 koduyla gıdada kullanılır.": "Pure gold is inert; it's used in food under code E175.", "Karıncalar hiç uyumaz.": "Ants never sleep.", "Günde yüzlerce kısa \"şekerleme\" yaparlar.": "They take hundreds of short \"naps\" per day.", "Bir kâğıdı 42 kez katlayabilsen kalınlığı Ay'a ulaşırdı.": "If you could fold a paper 42 times, it would reach the Moon.", "Üstel büyüme: 2^42 × 0,1 mm ≈ 440.000 km.": "Exponential growth: 2^42 × 0.1 mm ≈ 440,000 km.", "Everest'in zirvesi kaç metre?": "How many meters is the summit of Everest?", "BM'ye üye kaç ülke var?": "How many countries are UN members?", "İnsan vücudunda (yetişkin) kaç kemik var?": "How many bones are in the adult human body?", "Türkiye'de kaç il var?": "How many provinces does Turkey have?", "Ay, Dünya'ya ortalama kaç bin km uzaklıkta?": "How many thousand km away is the Moon from Earth on average?", "Titanic hangi yıl battı?": "In what year did the Titanic sink?", "Dünyada yaklaşık kaç dil konuşuluyor?": "Roughly how many languages are spoken in the world?", "Piyanoda kaç tuş var?": "How many keys does a piano have?", "15 Temmuz Şehitler Köprüsü kaç metre uzunluğunda?": "How many meters long is the 15 July Martyrs Bridge (Istanbul)?", "Nil Nehri kaç km?": "How many km long is the Nile River?", "Güneş ışığı Dünya'ya kaç dakikada ulaşır?": "How many minutes does sunlight take to reach Earth?", "Türkiye'nin kıyı şeridi kaç km?": "How many km is Turkey's coastline?", "İnsan kalbi günde yaklaşık kaç bin kez atar?": "How many thousand times does the human heart beat per day, roughly?", "Bir satranç tahtasında kaç kare var?": "How many squares are on a chessboard?", "Eyfel Kulesi kaç metre (antensiz)?": "How many meters is the Eiffel Tower (without antenna)?", "Dünyanın çevresi (ekvator) kaç bin km?": "How many thousand km is Earth's circumference (equator)?", "Aslan Kral": "The Lion King", "Titanic": "Titanic", "Örümcek Adam": "Spider-Man", "Yüzüklerin Efendisi": "The Lord of the Rings", "Jurassic Park": "Jurassic Park", "It (O)": "It", "Kayıp Balık Nemo": "Finding Nemo", "Karlar Ülkesi (Frozen)": "Frozen", "Hızlı ve Öfkeli": "Fast & Furious", "Kara Şövalye": "The Dark Knight", "Matrix": "The Matrix", "Oyuncak Hikayesi": "Toy Story", "Jaws": "Jaws", "Yıldız Savaşları": "Star Wars", "Geleceğe Dönüş": "Back to the Future", "Charlie'nin Çikolata Fabrikası": "Charlie and the Chocolate Factory", "Forrest Gump": "Forrest Gump", "Yıldızlararası": "Interstellar", "Parazit": "Parasite", "Başlangıç (Inception)": "Inception", "Marslı": "The Martian", "Dövüş Kulübü": "Fight Club", "Kung Fu Panda": "Kung Fu Panda", "Yukarı Bak (Up)": "Up", "Ratatouille": "Ratatouille", "Dracula": "Dracula", "Game of Thrones": "Game of Thrones", "Breaking Bad": "Breaking Bad", "La Casa de Papel": "Money Heist", "Squid Game": "Squid Game", "Stranger Things": "Stranger Things", "The Walking Dead": "The Walking Dead", "Friends": "Friends", "The Office": "The Office", "Sherlock": "Sherlock", "The Crown": "The Crown", "The Queen's Gambit": "The Queen's Gambit", "Leyla ile Mecnun": "Leyla ile Mecnun", "Dark": "Dark", "Lost": "Lost", "Sprint demosunun tam ortasında bütün ekranlar aniden karardı...": "Right in the middle of the sprint demo, every screen suddenly went dark...", "Ofise girdiğimizde masanın üstünde gizemli bir kutu duruyordu...": "When we walked into the office, there was a mysterious box sitting on the desk...", "Stand-up tam başlayacakken kapıdan bir lama girdi...": "Just as standup was about to start, a llama walked through the door...", "Yıl 2035; takımımız Mars'taki ilk scrum takımı olarak seçilmişti...": "The year is 2035; our team had just been chosen as the first scrum team on Mars...", "O sabah kahve makinesi konuşmaya başladı...": "That morning, the coffee machine started talking...", "Retro toplantısında biri \"itiraf etmem gereken bir şey var\" dedi...": "In the retro meeting, someone said \"there's something I need to confess\"...", "Asansörde genel müdürle 10 kat boyunca yalnız kaldık ve...": "We were stuck alone with the CEO in the elevator for 10 floors, and...", "Projenin kod adı yanlışlıkla müşteriye \"Operasyon Pofuduk\" olarak gitti...": "The project's code name accidentally got sent to the client as \"Operation Fluffy\"...", "ELMA": "APPLE", "DENİZ": "SEA", "KALEM": "PENCIL", "AY": "MOON", "YILDIZ": "STAR", "KÖPRÜ": "BRIDGE", "ASLAN": "LION", "ROBOT": "ROBOT", "PASTA": "CAKE", "ORMAN": "FOREST", "GÖLGE": "SHADOW", "ZAMAN": "TIME", "KUTU": "BOX", "ANAHTAR": "KEY", "DAĞ": "MOUNTAIN", "NEHİR": "RIVER", "KAPTAN": "CAPTAIN", "DOKTOR": "DOCTOR", "OKUL": "SCHOOL", "TREN": "TRAIN", "UÇAK": "PLANE", "BALIK": "FISH", "KEDİ": "CAT", "KURT": "WOLF", "AYNA": "MIRROR", "SAAT": "CLOCK", "MASA": "TABLE", "LAMBA": "LAMP", "KİTAP": "BOOK", "MÜZİK": "MUSIC", "DANS": "DANCE", "FUTBOL": "SOCCER", "KALE": "CASTLE", "KRAL": "KING", "KRALİÇE": "QUEEN", "ŞÖVALYE": "KNIGHT", "BÜYÜCÜ": "WIZARD", "EJDERHA": "DRAGON", "HAZİNE": "TREASURE", "KORSAN": "PIRATE", "ADA": "ISLAND", "ÇÖL": "DESERT", "BUZ": "ICE", "ATEŞ": "FIRE", "RÜZGAR": "WIND", "YAĞMUR": "RAIN", "BULUT": "CLOUD", "GÜNEŞ": "SUN", "TOHUM": "SEED", "ÇİÇEK": "FLOWER", "ARI": "BEE", "ÖRÜMCEK": "SPIDER", "YILAN": "SNAKE", "KARTAL": "EAGLE", "MARTI": "SEAGULL", "İĞNE": "NEEDLE", "İP": "ROPE", "DÜĞME": "BUTTON", "MAKAS": "SCISSORS", "KAĞIT": "PAPER", "TAŞ": "STONE", "CAM": "GLASS", "DEMİR": "IRON", "ALTIN": "GOLD", "GÜMÜŞ": "SILVER", "ELMAS": "DIAMOND", "İNCİ": "PEARL", "YÜZÜK": "RING", "TAÇ": "CROWN", "KILIÇ": "SWORD", "KALKAN": "SHIELD", "OK": "ARROW", "YAY": "BOW", "TUZAK": "TRAP", "KÖSTEBEK": "MOLE", "AJAN": "AGENT", "ŞİFRE": "CODE", "MASKE": "MASK", "PELERİN": "CLOAK", "KAHVE": "COFFEE", "ÇAY": "TEA", "ŞEKER": "SUGAR", "LİMON": "LEMON", "PORTAKAL": "ORANGE", "KİRAZ": "CHERRY", "ÜZÜM": "GRAPE", "KARPUZ": "WATERMELON", "EKMEK": "BREAD", "PEYNİR": "CHEESE", "ZEYTİN": "OLIVE", "BAL": "HONEY", "SÜT": "MILK", "YUMURTA": "EGG", "PAZAR": "MARKET", "ÇARŞI": "BAZAAR", "LİMAN": "HARBOR", "FENER": "LIGHTHOUSE", "ÇAPA": "ANCHOR", "YELKEN": "SAIL", "DALGA": "WAVE", "KUM": "SAND", "MİDYE": "MUSSEL", "YENGEÇ": "CRAB", "AHTAPOT": "OCTOPUS", "BALİNA": "WHALE", "KUYRUK": "TAIL", "KANAT": "WING", "TÜY": "FEATHER", "YUVA": "NEST", "KAFES": "CAGE", "ZİL": "BELL", "DAVUL": "DRUM", "GİTAR": "GUITAR", "KEMAN": "VIOLIN", "SAHNE": "STAGE", "PERDE": "CURTAIN", "KUKLA": "PUPPET", "SİRK": "CIRCUS", "PALYAÇO": "CLOWN", "JOKER": "JOKER", "ZAR": "DICE", "PİYON": "PAWN", "SATRANÇ": "CHESS", "HEDEF": "TARGET", "SKOR": "SCORE", "TAKIM": "TEAM", "KOÇ": "COACH", "HAKEM": "REFEREE", "DÜDÜK": "WHISTLE", "MADALYA": "MEDAL", "KUPA": "TROPHY", "BAYRAK": "FLAG", "HARİTA": "MAP", "PUSULA": "COMPASS", "ÇADIR": "TENT", "MUM": "CANDLE", "KİBRİT": "MATCH", "DUMAN": "SMOKE", "KÜL": "ASH", "VOLKAN": "VOLCANO", "DEPREM": "EARTHQUAKE", "FIRTINA": "STORM", "ŞİMŞEK": "LIGHTNING", "GÖKKUŞAĞI": "RAINBOW", "KUTUP": "POLE", "PENGUEN": "PENGUIN", "DEVE": "CAMEL", "PİRAMİT": "PYRAMID", "FİRAVUN": "PHARAOH", "MUMYA": "MUMMY", "LABİRENT": "MAZE", "KULE": "TOWER", "ZİNDAN": "DUNGEON", "KÖŞK": "MANSION", "SARAY": "PALACE", "HAMAM": "BATHHOUSE", "ÇEŞME": "FOUNTAIN", "KERVAN": "CARAVAN", "HALI": "CARPET", "KİLİM": "RUG", "NAZAR": "EVIL EYE", "SİMİT": "BAGEL", "BOĞAZ": "STRAIT", "VAPUR": "FERRY", "TRAMVAY": "TRAM", "TÜNEL": "TUNNEL", "Emoji Sineması": "Emoji Cinema", " ortak nokta bulundu": " things in common found", "Deste karıştırıldı 🔀": "Deck shuffled 🔀", "Kaydedilemedi — bağlantı sorunlu olabilir, tekrar dene 🙏": "Couldn't save — connection issue, please try again 🙏", " — ⚠️ Konsensüs yok, tartışın!": " — ⚠️ No consensus, discuss it!", " — ✅ Konsensüs var": " — ✅ Consensus reached", "Adım": "Step", "Bu kontrol facilitator'a ait 🎬": "This control belongs to the facilitator 🎬", "Bu sprint hedefini başaracağımıza güvenim kaç?": "How confident am I that we will hit this sprint goal?", "Duvar henüz boş. İlk teşekkürü sen yaz!": "The wall is empty. Write the first thank-you!", "Facilitator başlatır, herkes sırayla aynı oyunlardan geçer.": "The facilitator starts it, everyone goes through the same games in order.", "Henüz konu seçilmedi — konu ekleyin, facilitator sıradakini seçsin.": "No topic picked yet — add topics, let the facilitator pick the next one.", "Henüz konu yok. İlk konuyu sen ekle!": "No topics yet. Add the first one!", "Zamanlayıcı": "Timer", "tartışıldı": "discussed", "ŞİMDİ": "NOW", "🚀 Hazır Akışlar": "🚀 Ready-Made Flows", "Lean Coffee ☕": "Lean Coffee ☕", "Konu ekle, oyla, sırayla konuş": "Add topics, vote, discuss in order", "Herkes konu ekler ve oy verir. En çok oy alan konu üstte çıkar; facilitator \"Sıradaki konu\" ile sırayla ilerletir.": "Everyone adds topics and votes. The most-voted topic rises to the top; the facilitator advances through them with \"Next topic\".", "Konu öner...": "Suggest a topic...", "➡️ Sıradaki konu": "➡️ Next topic", "Yelkenli Retro ⛵": "Sailboat Retro ⛵", "🧹 Yeni tahta": "🧹 New board", "Önce bir çeyreği seç (mavi vurgu), sonra not ekle.": "Pick a quadrant first (blue highlight), then add a note.", "💨 Rüzgar — bizi ileri iten şeyler": "💨 Wind — what pushes us forward", "⚓ Çapa — bizi geri tutan şeyler": "⚓ Anchor — what holds us back", "🪨 Kayalar — önümüzdeki riskler": "🪨 Rocks — risks ahead", "🏝️ Ada — hedefimiz / vizyonumuz": "🏝️ Island — our goal / vision", "Teşekkür Duvarı 🙌": "Kudos Wall 🙌", "Bir takım arkadaşına teşekkür et": "Thank a teammate", "Kime ve neden teşekkür ediyorsun? Kısa ve samimi olsun.": "Who are you thanking and why? Keep it short and genuine.", "örn. Ayşe'ye teşekkürler, demo öncesi bana yardım ettiği için 🙏": "e.g. Thanks to Alex for helping me before the demo 🙏", "🧹 Duvarı temizle": "🧹 Clear the wall", "🎯 Sprint Güveni önerisi": "🎯 Suggest sprint confidence", "Git →": "Go →", "Sıradaki →": "Next →", "Lean Coffee": "Lean Coffee", "Konu öner, oyla, en çok oy alanı sırayla konuş.": "Suggest topics, vote, discuss the top-voted one in order.", "Yelkenli Retro": "Sailboat Retro", "Rüzgar / çapa / kayalar / ada metaforuyla retro.": "Retro using the wind / anchor / rocks / island metaphor.", "Teşekkür Duvarı": "Kudos Wall", "Takım arkadaşlarına anonim olmayan kısa teşekkür notları.": "Short, non-anonymous thank-you notes for teammates.", "⚡ 15 dk Enerji": "⚡ 15-min Energy", "Toplantıya hızlı ve pozitif başlangıç.": "A quick, positive start to the meeting.", "📋 45 dk Retro": "📋 45-min Retro", "Ruh hali → ortak pano → aksiyon güveni.": "Mood → shared board → action confidence.", "👋 Yeni Takım Tanışma": "👋 New Team Introductions", "Birbirinizi tanımak için 3 oyun.": "3 games to get to know each other.", "🃏 Planlama Oturumu": "🃏 Planning Session", "Isınma + tahmin + hizalanma kontrolü.": "Warm-up + estimation + alignment check.", "🎬 Ben facilitator'ım (bu oturumu ben yöneteceğim)": "🎬 I'm the facilitator (I'll run this session)", "1 dk": "1 min", "3 dk": "3 min", "5 dk": "5 min", "10 dk": "10 min", "Gün": "Day", "Henüz iş eklenmedi. Sprint'teki gerçek işlerinizi ekleyin ve hangi güne planladığınızı görün.": "No tasks yet. Add your sprint's real tasks and see which day you planned them for.", "Parçala": "Split", "SON GÜN": "LAST DAY", "Sil": "Delete", "İkiye bölündü — bir parçayı daha erken güne aldık 👍": "Split in two — moved one half to an earlier day 👍", "✅ İş dağılımı dengeli görünüyor — akış sağlıklı, son güne yığılma riski düşük.": "✅ Workload looks balanced — flow is healthy, low risk of a last-day pile-up.", "💡 Dağılım fena değil ama hâlâ büyük (L/XL) işler var — bunları parçalamak tahmini kolaylaştırır ve riski azaltır.": "💡 Distribution isn't bad, but there are still big (L/XL) tasks — splitting them makes estimation easier and lowers risk.", "🔥 İşlerin çoğu son güne yığılmış — bu tempoda yetişmeye çalışmak kaliteyi düşürür ve stres yaratır. Büyük kalemleri daha erken güne alıp parçalamayı deneyin.": "🔥 Most of the work is piled onto the last day — rushing at this pace hurts quality and creates stress. Try moving big items earlier and splitting them.", "Sprint Akışı 🌊": "Sprint Flow 🌊", "İşlerinizi güne güne planlayın": "Plan your tasks day by day", "Gerçek (veya örnek) işlerinizi ekleyin, boyut seçin, hangi sprint gününde yapılacağını işaretleyin. Alttaki grafik işlerin güne göre nasıl dağıldığını gösterir — son güne yığılma riskini birlikte görün.": "Add your real (or example) tasks, pick a size, and mark which sprint day they belong to. The chart below shows how the work is spread across days — see the last-day pile-up risk together.", "Yük Dağılımı": "Workload Distribution", "🧹 Yeni sprint": "🧹 New sprint", "Sprint Akışı": "Sprint Flow", "İşleri güne yay, son güne yığılma riskini birlikte görün.": "Spread work across days and see the last-day pile-up risk together."};
+function t(s){ return LANG==='en' ? (Object.prototype.hasOwnProperty.call(I18N,s)?I18N[s]:s) : s; }
+const DYNAMIC_IDS=['home','colorRow','boardArea','ttolRight','ttolRightTitle','wdRight','wdRightTitle','owCloud',
+ 'moodBtns','moodBars','qqText','qqIdx','wyrBtns','wyrIdx','commonCount','commonList','chainScore','chainChips',
+ 'storyText','ngQ','ngResults','ngStat','ngIdx','hmStage','tfQ','tfBtns','tfExp','tfIdx','emCat','emEmo','emAns',
+ 'emIdx','cnGrid','cnMsg','cnBlue','cnRed','pkTitle','pkCards','pkResults','pkStat','fsCards','fsResults','fsStat',
+ 'healthRows','healthWho','tfNum','flowLabel','facBadge','lcCurrent','lcList','sailGrid','kdWall',
+ 'sfSizes','sfDays','sfLoad','sfInsight'];
+function inDynamic(node){
+  let e = node.nodeType===3 ? node.parentElement : node;
+  while(e){
+    if(e.id && DYNAMIC_IDS.includes(e.id)) return true;
+    if(e.classList && e.classList.contains('timerinline')) return true;
+    e=e.parentElement;
+  }
+  return false;
+}
+function applyStaticI18N(){
+  document.title = LANG==='en' ? t('Takım Panosu — Agile Oyun Odası') : 'Takım Panosu — Agile Oyun Odası';
+  const walker=document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  const nodes=[]; let n; while(n=walker.nextNode()) nodes.push(n);
+  nodes.forEach(node=>{
+    const pe=node.parentElement;
+    if(!pe || pe.tagName==='SCRIPT' || pe.tagName==='STYLE') return;
+    if(inDynamic(node)) return;
+    const raw=node.nodeValue, trimmed=raw.trim();
+    if(!trimmed) return;
+    if(LANG==='en'){
+      if(Object.prototype.hasOwnProperty.call(I18N,trimmed)) node.nodeValue=raw.replace(trimmed, I18N[trimmed]);
+    } else {
+      for(const k in I18N){ if(I18N[k]===trimmed){ node.nodeValue=raw.replace(trimmed,k); break; } }
+    }
+  });
+  document.querySelectorAll('[placeholder]').forEach(el=>{
+    if(inDynamic(el)) return;
+    const cur=el.getAttribute('placeholder');
+    if(LANG==='en'){
+      if(Object.prototype.hasOwnProperty.call(I18N,cur)) el.setAttribute('placeholder', I18N[cur]);
+    } else {
+      for(const k in I18N){ if(I18N[k]===cur){ el.setAttribute('placeholder', k); break; } }
+    }
+  });
+}
+function setLang(l){
+  LANG=l;
+  document.querySelectorAll('#langTog button').forEach(b=>b.classList.toggle('on', b.dataset.lang===l));
+  applyStaticI18N();
+  buildHome();
+  renderCur();
+}
+
+/* ================= facilitator ================= */
+const META_DEF={facilitator:'',ts:0};
+function mergeMeta(a,b){ return (b.ts||0)>=(a.ts||0)?b:a; }
+function isFac(){ const f=G.meta&&G.meta.facilitator; return !f || f===ME; }
+function facBlock(){ toast(t('Bu kontrol facilitator\'a ait 🎬')); }
+function claimFacilitator(){ gMut('meta',META_DEF,mergeMeta,s=>{ s.facilitator=ME; }); }
+let metaTimer=null;
+function startGlobalPoll(){
+  syncMeta(); syncTimer(); syncFlow();
+  if(metaTimer) clearInterval(metaTimer);
+  metaTimer=setInterval(()=>{ syncMeta(); syncTimer(); syncFlow(); }, 3000);
+}
+async function syncMeta(){
+  await gSync('meta', META_DEF, mergeMeta);
+  const badge=document.getElementById('facBadge');
+  const f=G.meta&&G.meta.facilitator;
+  if(f){ badge.style.display='inline-block'; badge.textContent='🎬 '+f+(f===ME?t(' (sen)'):''); }
+  else badge.style.display='none';
+  applyFacUI();
+}
+function applyFacUI(){
+  document.querySelectorAll('.fac-only').forEach(b=>{ if(b.tagName==='BUTTON'||b.tagName==='INPUT') b.disabled=!isFac(); });
+}
+
+/* ================= paylaşımlı zamanlayıcı ================= */
+const TIMER_DEF={endTs:0,dur:0,ts:0};
+function mergeTimer(a,b){ return (b.ts||0)>=(a.ts||0)?b:a; }
+let timerTick=null, timerBeeped=false;
+function togglePicker(){
+  if(!isFac()){ facBlock(); return; }
+  document.getElementById('timerPicker').classList.toggle('show');
+}
+function timerStart(sec){
+  if(!isFac()){ facBlock(); return; }
+  gMut('timer',TIMER_DEF,mergeTimer,s=>{ s.endTs=Date.now()+sec*1000; s.dur=sec; });
+  document.getElementById('timerPicker').classList.remove('show');
+  timerBeeped=false;
+}
+function timerCancel(){
+  if(!isFac()){ facBlock(); return; }
+  gMut('timer',TIMER_DEF,mergeTimer,s=>{ s.endTs=0; s.dur=0; });
+}
+async function syncTimer(){ await gSync('timer', TIMER_DEF, mergeTimer); }
+
+/* ================= hazır akış motoru ================= */
+const FLOW_DEF={id:'',step:0,ts:0};
+function mergeFlow(a,b){ return (b.ts||0)>=(a.ts||0)?b:a; }
+async function syncFlow(){ await gSync('flow', FLOW_DEF, mergeFlow); }
+function flowStart(id){
+  if(!isFac()){ facBlock(); return; }
+  gMut('flow',FLOW_DEF,mergeFlow,s=>{ s.id=id; s.step=0; });
+  const f=FLOWS.find(x=>x.id===id); if(f) openView(f.games[0]);
+}
+function flowAdvance(){
+  if(!isFac()){ facBlock(); return; }
+  const s=G.flow||FLOW_DEF, f=FLOWS.find(x=>x.id===s.id); if(!f) return;
+  const next=Math.min((s.step||0)+1, f.games.length-1);
+  gMut('flow',FLOW_DEF,mergeFlow,st=>{ st.step=next; });
+  openView(f.games[next]);
+}
+function flowGoto(){
+  const s=G.flow||FLOW_DEF, f=FLOWS.find(x=>x.id===s.id); if(!f) return;
+  openView(f.games[s.step||0]);
+}
+function flowEnd(){
+  if(!isFac()){ facBlock(); return; }
+  gMut('flow',FLOW_DEF,mergeFlow,s=>{ s.id=''; s.step=0; });
+}
+function renderFlowTick(){
+  const s=G.flow||FLOW_DEF, f=FLOWS.find(x=>x.id===s.id);
+  const box=document.getElementById('flowFloat');
+  if(!f){ box.classList.remove('show'); return; }
+  box.classList.add('show');
+  const step=s.step||0, gid=f.games[step], g=GAMES.find(x=>x.id===gid);
+  document.getElementById('flowLabel').textContent=t(f.nm)+' — '+t('Adım')+' '+(step+1)+'/'+f.games.length+': '+(g?t(g.nm):gid);
+  document.getElementById('flowNextBtn').disabled = step>=f.games.length-1 ? true : !isFac();
+  document.getElementById('flowEndBtn').disabled = !isFac();
+}
+function beep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine'; o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(.18, ctx.currentTime);
+    o.start(); o.stop(ctx.currentTime+.35);
+  }catch(e){}
+}
+function fmtTime(s){ s=Math.max(0,Math.round(s)); const m=Math.floor(s/60), r=s%60; return (m<10?'0':'')+m+':'+(r<10?'0':'')+r; }
+function renderTimerTick(){
+  const s=G.timer||TIMER_DEF, active=s.endTs>0;
+  const fFloat=document.getElementById('timerFloat'), numFloat=document.getElementById('tfNum');
+  const inlines=document.querySelectorAll('.timerinline');
+  if(!active){
+    fFloat.classList.remove('show');
+    inlines.forEach(el=>{ el.innerHTML='<button class="tset'+(isFac()?'':' fac-only')+'" '+(isFac()?'':'disabled')+' onclick="togglePicker()">⏱ '+t('Zamanlayıcı')+'</button>'; });
+    applyFacUI();
+    return;
+  }
+  const remain=(s.endTs-Date.now())/1000;
+  const done=remain<=0;
+  if(done && !timerBeeped){ timerBeeped=true; beep(); }
+  if(!done) timerBeeped=false;
+  const label=fmtTime(remain);
+  fFloat.classList.add('show');
+  numFloat.textContent=label; numFloat.classList.toggle('tdone',done);
+  document.getElementById('tfCancelBtn').style.display=isFac()?'':'none';
+  inlines.forEach(el=>{
+    el.innerHTML='<span class="tnum'+(done?' tdone':'')+'">⏱ '+label+'</span>'+(isFac()?'<button class="tset" onclick="timerCancel()">✕</button>':'');
+  });
+}
+function injectTimerInlines(){
+  document.querySelectorAll('.backbar').forEach(b=>{
+    if(!b.querySelector('.timerinline')) b.insertAdjacentHTML('beforeend','<span class="timerinline"></span>');
+  });
+}
+
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function key(g){ return 'tp:'+ROOM+':'+g; }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function trUp(s){ return LANG==='en' ? s.toUpperCase() : s.toLocaleUpperCase('tr-TR'); }
+function trLow(s){ return LANG==='en' ? s.toLowerCase() : s.toLocaleLowerCase('tr-TR'); }
+function shuffleIdx(n){ const a=[...Array(n).keys()]; for(let i=n-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* --- depolama: yazma kuyruğu + otomatik yeniden deneme (kaydetme hatası düzeltmesi) --- */
+let writeQ=Promise.resolve();
+async function stGet(k){ try{ const r=await window.storage.get(k, true); return r?JSON.parse(r.value):null; } catch(e){ return null; } }
+function stSet(k,obj){
+  const p = writeQ.then(async()=>{
+    for(let t=0;t<4;t++){
+      try{ await window.storage.set(k, JSON.stringify(obj), true); return true; }
+      catch(e){ await sleep(350*(t+1)); }
+    }
+    toast(t('Kaydedilemedi — bağlantı sorunlu olabilir, tekrar dene 🙏')); return false;
+  });
+  writeQ = p.catch(()=>{});
+  return p;
+}
+
+/* --- oda --- */
+function randomRoom(){ const ch='ABCDEFGHJKLMNPRSTUVYZ23456789'; let r=''; for(let i=0;i<4;i++) r+=ch[Math.floor(Math.random()*ch.length)]; document.getElementById('jRoom').value=r; }
+function joinRoom(){
+  const n=document.getElementById('jName').value.trim();
+  const r=document.getElementById('jRoom').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!n){ toast(t('Adını yaz')); return; } if(!r){ toast(t('Oda kodu gerekli (harf ve rakam)')); return; }
+  ME=n; ROOM=r;
+  document.getElementById('whoami').textContent=ME;
+  document.getElementById('roomPill').textContent=ROOM;
+  document.getElementById('roomTag').style.display='flex';
+  startGlobalPoll();
+  if(document.getElementById('jFac').checked) claimFacilitator();
+  openView('home');
+}
+function leaveRoom(){ ME=''; ROOM=''; Object.keys(G).forEach(k=>delete G[k]); if(metaTimer){ clearInterval(metaTimer); metaTimer=null; } document.getElementById('facBadge').style.display='none'; document.getElementById('roomTag').style.display='none'; openView('join'); }
+
+/* --- oyun kataloğu & ana sayfa --- */
+const CATS=[
+ {id:'ice',   t:'🧊 Kaynaşma', d:'Güne veya toplantıya ısınmak için 2-5 dakikalık ice breaker\'lar.'},
+ {id:'know',  t:'👥 Takımı Tanıma', d:'Birbirinizi bir insan olarak tanıyın — sürprizlere hazır olun.'},
+ {id:'team',  t:'🤝 Ekip Çalışması', d:'Birlikte üretme, birlikte tahmin etme, birlikte kazanma.'},
+ {id:'agile', t:'📋 Agile & Retro', d:'Scrum master\'ın alet çantası: retro, tahmin, hizalanma, sağlık.'},
+ {id:'fun',   t:'🎉 Eğlence', d:'Sadece gülmek için. Sprint bitti, hak ettiniz.'}
+];
+const GAMES=[
+ {id:'mood',   cat:'ice', em:'🌤️', nm:'Duygu Barometresi', ds:'Herkes bugünkü modunu paylaşır — check-in için 60 saniyelik klasik.'},
+ {id:'quickq', cat:'ice', em:'⚡', nm:'Hızlı Sorular', ds:'Kart destesinden rastgele sohbet soruları. Sırayla cevaplayın.'},
+ {id:'wyr',    cat:'ice', em:'🤔', nm:'Sen Olsan?', ds:'İki seçenek, gizli oylama, sonra takımın bölünmüşlüğünü görün.'},
+ {id:'common', cat:'ice', em:'🎯', nm:'Ortak Nokta Avı', ds:'5 dakikada 10 ortak nokta bulabilecek misiniz?'},
+ {id:'ttol',   cat:'know', em:'🤥', nm:'2 Doğru 1 Yalan', ds:'Üç cümle yaz, biri yalan. Takım yalanı avlasın.'},
+ {id:'whodis', cat:'know', em:'🎭', nm:'Kim Bu?', ds:'Anonim gerçekler — takım kimin yazdığını tahmin eder.'},
+ {id:'oneword',cat:'know', em:'💬', nm:'Bir Kelimeyle', ds:'Sprint\'i tek kelimeyle özetle; kelime bulutu oluşsun.'},
+ {id:'chain',  cat:'team', em:'🔗', nm:'Kelime Zinciri', ds:'Son harften yeni kelime. Zinciri birlikte uzatın.'},
+ {id:'story',  cat:'team', em:'📖', nm:'Hikaye Fabrikası', ds:'Cümle cümle ortak hikaye. Nereye gideceği belli olmaz.'},
+ {id:'numg',   cat:'team', em:'🔢', nm:'Takım Tahmini', ds:'Kalabalığın bilgeliği: ortalamanız gerçeğe ne kadar yakın?'},
+ {id:'board',  cat:'agile', em:'📌', nm:'Ortak Pano', ds:'Yapışkan notlar + retro modu (İyi gitti / Geliştirilebilir / Aksiyon).'},
+ {id:'poker',  cat:'agile', em:'🃏', nm:'Planlama Pokeri', ds:'Story point tahmini: gizli oy, birlikte açılış, ortalama.'},
+ {id:'health', cat:'agile', em:'🩺', nm:'Takım Sağlığı', ds:'Squad health check: 6 alan, 🟢🟡🔴, anonim sonuç.'},
+ {id:'fist',   cat:'agile', em:'✋', nm:'Beşle Oyla', ds:'Fist of five: karara ne kadar varsınız? 1-5 gizli oy.'},
+ {id:'leancoffee', cat:'agile', em:'☕', nm:'Lean Coffee', ds:'Konu öner, oyla, en çok oy alanı sırayla konuş.'},
+ {id:'sailboat', cat:'agile', em:'⛵', nm:'Yelkenli Retro', ds:'Rüzgar / çapa / kayalar / ada metaforuyla retro.'},
+ {id:'sprintflow', cat:'agile', em:'🌊', nm:'Sprint Akışı', ds:'İşleri güne yay, son güne yığılma riskini birlikte görün.'},
+ {id:'emoji',  cat:'fun', em:'🎬', nm:'Emoji Sineması', ds:'Emojilerden film ve dizi tahmin et. 40 kart.'},
+ {id:'codenames',cat:'fun', em:'🕵️', nm:'Kod Adları', ds:'Türkçe kelime havuzuyla klasik Codenames, ortak tahta.'},
+ {id:'hangman',cat:'fun', em:'🪢', nm:'Adam Asmaca', ds:'Biri kelimeyi belirler, takım harf harf çözer. 6 can.'},
+ {id:'tf',     cat:'fun', em:'⚖️', nm:'Doğru mu Yanlış mı?', ds:'Şaşırtıcı bilgiler: önce oyla, sonra gerçeği öğren.'},
+ {id:'kudos',  cat:'fun', em:'🙌', nm:'Teşekkür Duvarı', ds:'Takım arkadaşlarına anonim olmayan kısa teşekkür notları.'}
+];
+
+/* ================= hazır akışlar ================= */
+const FLOWS=[
+ {id:'energy15', nm:'⚡ 15 dk Enerji', ds:'Toplantıya hızlı ve pozitif başlangıç.', games:['mood','quickq','oneword']},
+ {id:'retro45',  nm:'📋 45 dk Retro', ds:'Ruh hali → ortak pano → aksiyon güveni.', games:['mood','board','fist']},
+ {id:'newteam',  nm:'👋 Yeni Takım Tanışma', ds:'Birbirinizi tanımak için 3 oyun.', games:['ttol','whodis','common']},
+ {id:'planning', nm:'🃏 Planlama Oturumu', ds:'Isınma + tahmin + hizalanma kontrolü.', games:['quickq','poker','fist']}
+];
+function buildFlows(){
+  const el=document.getElementById('flowsHome');
+  if(!el) return;
+  el.innerHTML='<div class="flowsec"><h2 class="cath">'+t('🚀 Hazır Akışlar')+'</h2><p class="catds">'+t('Facilitator başlatır, herkes sırayla aynı oyunlardan geçer.')+'</p><div class="flowcards">'
+    +FLOWS.map(f=>'<div class="flowcard" onclick="flowStart(\''+f.id+'\')"><span class="fnm">'+t(f.nm)+'</span><span class="fds">'+t(f.ds)+'</span></div>').join('')
+    +'</div></div>';
+}
+function buildHome(){
+  document.getElementById('home').innerHTML = '<div id="flowsHome"></div>' + CATS.map(c=>
+    '<div class="catsec"><h2 class="cath">'+t(c.t)+'</h2><p class="catds">'+t(c.d)+'</p><div class="games">'+
+    GAMES.filter(g=>g.cat===c.id).map((g,i)=>
+      '<button class="game c'+(i%5)+'" onclick="openView(\''+g.id+'\')"><span class="em">'+g.em+'</span><span class="nm">'+t(g.nm)+'</span><span class="ds">'+t(g.ds)+'</span></button>'
+    ).join('')+'</div></div>').join('');
+  buildFlows();
+}
+buildHome();
+injectTimerInlines();
+setInterval(()=>{ renderTimerTick(); renderFlowTick(); }, 1000);
+
+/* --- router --- */
+const SYNCS={}, RENDER={}, ONENTER={};
+function renderCur(){ if(RENDER[VIEW]) RENDER[VIEW](); }
+function openView(v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById(v).classList.add('active');
+  VIEW=v;
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+  if(ONENTER[v]) ONENTER[v]();
+  if(SYNCS[v]){ SYNCS[v](); pollTimer=setInterval(SYNCS[v], 3000); }
+}
+
+/* --- genel birleştirme yardımcıları --- */
+function mergeItems(a,b){ /* öğe listeleri: id bazlı, yeni ts kazanır */
+  const m={}; [...(a.items||[]),...(b.items||[])].forEach(it=>{ if(!m[it.id]||it.ts>m[it.id].ts) m[it.id]=it; });
+  const newer=(b.ts||0)>=(a.ts||0)?b:a;
+  return {...newer, items:Object.values(m).sort((x,y)=>x.ts-y.ts)};
+}
+function mergePerName(field){ return (a,b)=>{ /* kişi başı kayıt: yeni ts kazanır */
+  const m={...(a[field]||{})};
+  for(const [n,v] of Object.entries(b[field]||{})){ if(!m[n]||(v.ts||0)>(m[n].ts||0)) m[n]=v; }
+  const newer=(b.ts||0)>=(a.ts||0)?b:a;
+  return {...newer, [field]:m};
+};}
+function mergeRound(a,b){ /* tur bazlı: yüksek tur kazanır, aynı turda oylar birleşir */
+  if((b.round||0)>(a.round||0)) return b;
+  if((a.round||0)>(b.round||0)) return a;
+  const newer=(b.ts||0)>=(a.ts||0)?b:a;
+  return {...newer, votes:{...(a.votes||{}),...(b.votes||{})}, revealed:!!(a.revealed||b.revealed)};
+}
+function mergeDeckState(a,b){ /* deste: yeni ts'nin kartı; aynı karttaysa oylar birleşir */
+  const newer=(b.ts||0)>=(a.ts||0)?b:a, older=newer===a?b:a;
+  const out={...newer};
+  if(older.order && newer.order && older.i===newer.i && older.order[0]===newer.order[0] && older.order.length===newer.order.length){
+    out.votes={...(older.votes||{}),...(newer.votes||{})};
+    out.revealed=!!(older.revealed||newer.revealed);
+  }
+  return out;
+}
+async function gSync(name, def, merge){
+  const remote=await stGet(key(name));
+  let s=G[name]||JSON.parse(JSON.stringify(def));
+  if(remote) s=merge?merge(s,remote):((remote.ts||0)>=(s.ts||0)?remote:s);
+  G[name]=s; renderCur(); return s;
+}
+async function gMut(name, def, merge, mutate){
+  await gSync(name, def, merge);
+  mutate(G[name]); G[name].ts=Date.now();
+  renderCur();
+  await stSet(key(name), G[name]);
+}
+/* ================= ortak pano ================= */
+const STICKY=['var(--s-yellow)','var(--s-pink)','var(--s-green)','var(--s-blue)','var(--s-purple)'];
+const RETRO_COLS=['İyi gitti 👍','Geliştirilebilir 🔧','Aksiyon 🎯'];
+let noteColor=0, retroCol=0, dragging=null;
+const BOARD_DEF={mode:'free', modeTs:0, notes:[], ts:0};
+function mergeBoard(a,b){
+  const m={}; [...(a.notes||[]),...(b.notes||[])].forEach(n=>{ if(!m[n.id]||n.ts>m[n.id].ts) m[n.id]=n; });
+  const modeSrc=(b.modeTs||0)>=(a.modeTs||0)?b:a;
+  return {mode:modeSrc.mode||'free', modeTs:modeSrc.modeTs||0, notes:Object.values(m), ts:Math.max(a.ts||0,b.ts||0)};
+}
+SYNCS.board=()=>gSync('board',BOARD_DEF,mergeBoard);
+ONENTER.board=()=>renderColorRow();
+function renderColorRow(){
+  document.getElementById('colorRow').innerHTML=STICKY.map((c,i)=>'<button class="swatch'+(i===noteColor?' sel':'')+'" style="background:'+c+'" onclick="noteColor='+i+';renderColorRow()"></button>').join('');
+}
+function setBoardMode(m){ if(!isFac()){ facBlock(); return; } gMut('board',BOARD_DEF,mergeBoard,s=>{ s.mode=m; s.modeTs=Date.now(); }); }
+function addNote(){
+  const inp=document.getElementById('noteText'); const txt=inp.value.trim();
+  if(!txt){ toast(t('Önce bir şey yaz')); return; }
+  inp.value='';
+  gMut('board',BOARD_DEF,mergeBoard,s=>{ s.notes.push({id:uid(),text:txt,color:noteColor,author:ME,x:8+Math.random()*70,y:6+Math.random()*70,col:retroCol,ts:Date.now()}); });
+}
+function delNote(id){ gMut('board',BOARD_DEF,mergeBoard,s=>{ const n=s.notes.find(n=>n.id===id); if(n){ n.del=true; n.ts=Date.now(); } }); }
+function noteHTML(n){
+  return '<div class="note" data-id="'+n.id+'" style="background:'+STICKY[n.color||0]+';">'+esc(n.text)
+    +'<span class="au">'+esc(n.author||'')+'</span>'
+    +(n.author===ME?'<button class="del" onclick="delNote(\''+n.id+'\')">✕</button>':'')+'</div>';
+}
+RENDER.board=function(){
+  if(dragging) return;
+  const s=G.board||BOARD_DEF;
+  document.getElementById('mFree').classList.toggle('on', s.mode!=='retro');
+  document.getElementById('mRetro').classList.toggle('on', s.mode==='retro');
+  const area=document.getElementById('boardArea');
+  const live=(s.notes||[]).filter(n=>!n.del);
+  if(s.mode==='retro'){
+    area.innerHTML='<div class="retrocols">'+RETRO_COLS.map((c,i)=>
+      '<div class="rcol'+(i===retroCol?' drop-hint':'')+'" onclick="retroCol='+i+';RENDER.board()"><h3>'+t(c)+'</h3>'+
+      live.filter(n=>(n.col||0)===i).sort((a,b)=>a.ts-b.ts).map(noteHTML).join('')+'</div>').join('')+'</div>';
+  } else {
+    area.innerHTML=live.map(n=>{
+      const h=noteHTML(n); return h.replace('class="note"','class="note" ').replace('style="','style="left:'+n.x+'%; top:'+n.y+'%; ');
+    }).join('');
+    area.querySelectorAll('.note').forEach(el=>el.addEventListener('pointerdown', dragStart));
+  }
+};
+function dragStart(e){
+  if(e.target.classList.contains('del')) return;
+  const el=e.currentTarget, id=el.dataset.id;
+  const s=G.board; const n=s&&s.notes.find(n=>n.id===id); if(!n) return;
+  const area=document.getElementById('boardArea').getBoundingClientRect();
+  dragging={startX:e.clientX, startY:e.clientY, ox:n.x, oy:n.y, nx:n.x, ny:n.y};
+  el.setPointerCapture(e.pointerId);
+  const move=ev=>{
+    dragging.nx=Math.max(0,Math.min(88, dragging.ox+(ev.clientX-dragging.startX)/area.width*100));
+    dragging.ny=Math.max(0,Math.min(85, dragging.oy+(ev.clientY-dragging.startY)/area.height*100));
+    el.style.left=dragging.nx+'%'; el.style.top=dragging.ny+'%';
+  };
+  const up=()=>{
+    el.removeEventListener('pointermove',move); el.removeEventListener('pointerup',up);
+    const nx=dragging.nx, ny=dragging.ny; dragging=null;
+    gMut('board',BOARD_DEF,mergeBoard,s=>{ const m=s.notes.find(x=>x.id===id); if(m){ m.x=nx; m.y=ny; m.ts=Date.now(); } });
+  };
+  el.addEventListener('pointermove',move); el.addEventListener('pointerup',up);
+}
+
+/* ================= deste motoru (emoji, wyr, tf, quickq, numg) ================= */
+const DECKS={
+ emoji:[
+  {e:'🦁👑🌅',a:'Aslan Kral',t:'Film'},{e:'🚢🧊💔',a:'Titanic',t:'Film'},{e:'🕷️🧑🗽',a:'Örümcek Adam',t:'Film'},
+  {e:'🧙‍♂️💍🌋',a:'Yüzüklerin Efendisi',t:'Film'},{e:'🦖🏝️🔬',a:'Jurassic Park',t:'Film'},{e:'🤡🎈🚿',a:'It (O)',t:'Film'},
+  {e:'🐠🔍🌊',a:'Kayıp Balık Nemo',t:'Film'},{e:'❄️⛄👭🏰',a:'Karlar Ülkesi (Frozen)',t:'Film'},{e:'🚗💨👨‍👩‍👦🏁',a:'Hızlı ve Öfkeli',t:'Film'},
+  {e:'🃏🦇🌃',a:'Kara Şövalye',t:'Film'},{e:'💊🕶️🐇💻',a:'Matrix',t:'Film'},{e:'🤠🚀🧸',a:'Oyuncak Hikayesi',t:'Film'},
+  {e:'🦈🏖️🚤',a:'Jaws',t:'Film'},{e:'🌌⚔️🤖👽',a:'Yıldız Savaşları',t:'Film'},{e:'⏰🚗⚡👨‍🔬',a:'Geleceğe Dönüş',t:'Film'},
+  {e:'🍫🏭👦🎫',a:'Charlie\'nin Çikolata Fabrikası',t:'Film'},{e:'🏃🍫🦐🇺🇸',a:'Forrest Gump',t:'Film'},{e:'🚀🌽⏳🕳️',a:'Yıldızlararası',t:'Film'},
+  {e:'🏚️👨‍👩‍👧‍👦🍑💰',a:'Parazit',t:'Film'},{e:'😴💭🌀🏙️',a:'Başlangıç (Inception)',t:'Film'},{e:'👨‍🚀🥔🔴',a:'Marslı',t:'Film'},
+  {e:'🥊🧼🚫🗣️',a:'Dövüş Kulübü',t:'Film'},{e:'🐼🥋🍜',a:'Kung Fu Panda',t:'Film'},{e:'👴🏠🎈✈️',a:'Yukarı Bak (Up)',t:'Film'},
+  {e:'🐀👨‍🍳🇫🇷',a:'Ratatouille',t:'Film'},{e:'🧛🏰🦇',a:'Dracula',t:'Film'},
+  {e:'🐉👑⚔️🧊',a:'Game of Thrones',t:'Dizi'},{e:'🧪👨‍🏫💰🚐',a:'Breaking Bad',t:'Dizi'},{e:'🎭💶🔫🏦',a:'La Casa de Papel',t:'Dizi'},
+  {e:'🦑🎮💰🔺',a:'Squid Game',t:'Dizi'},{e:'👦🚲👾🙃',a:'Stranger Things',t:'Dizi'},{e:'🧟🚶🏹',a:'The Walking Dead',t:'Dizi'},
+  {e:'☕🛋️👫🗽',a:'Friends',t:'Dizi'},{e:'📎🏢📷😂',a:'The Office',t:'Dizi'},{e:'🕵️‍♂️🎻🇬🇧🧠',a:'Sherlock',t:'Dizi'},
+  {e:'👑🇬🇧🏰',a:'The Crown',t:'Dizi'},{e:'♟️👧🍷',a:'The Queen\'s Gambit',t:'Dizi'},{e:'🚌🧞😂🇹🇷',a:'Leyla ile Mecnun',t:'Dizi'},
+  {e:'🕳️🌍👶🔄',a:'Dark',t:'Dizi'},{e:'🏝️✈️🔢',a:'Lost',t:'Dizi'}
+ ],
+ quickq:[
+  'Çay mı kahve mi — ve neden?','Süper gücün olsa ne olurdu?','Hayatının filmi çekilse adı ne olurdu?','Çocukken ne olmak istiyordun?',
+  'Işınlanma mı zihin okuma mı?','En sevdiğin sokak lezzeti ne?','Bir günlüğüne biriyle yer değişebilsen kim olurdu?','En garip yeteneğin ne?',
+  'Hangi diziyi baştan sona birden fazla kez bitirdin?','Sabah insanı mısın, gece insanı mı?','İlk maaşınla ne almıştın?',
+  'Karaoke gecesinde hangi şarkıyı söylerdin?','Yarın tüm işler iptal olsa bugün ne yapardın?','En son öğrendiğin ilginç bilgi ne?',
+  'İş dışında hangi konuda 1 saat sunum yapabilirsin?','Hayvan olsan hangi hayvan olurdun?','En sevdiğin çocukluk oyunu neydi?',
+  'Şu an bilet alsan ilk hangi ülkeye giderdin?','Kahvaltıda tatlı mı tuzlu mu?','Bir startup kursan ne yapardı?',
+  'Telefonunda en çok kullandığın 3 uygulama ne?','Hiç unutamadığın bir öğretmenin var mı, neden?','Evindeki en değerli (para değil, anlam olarak) eşya ne?',
+  'Bir yıl boyunca tek yemek yiyebilsen ne seçerdin?','Takım olarak bir tatile çıksak nereye gitmeliyiz?','En büyük mutfak felaketin neydi?',
+  'Hangi ünlüyle bir kahve içmek isterdin?','Bugüne kadar aldığın en iyi tavsiye ne?'
+ ],
+ wyr:[
+  {a:'Işınlanabilmek',b:'Uçabilmek'},{a:'Her yere 10 dk geç kalmak',b:'Her yere 2 saat erken gitmek'},
+  {a:'Denizsiz dağ evi',b:'Dağsız sahil evi'},{a:'Sadece sesli mesaj atabilmek',b:'Sadece yazılı mesaj atabilmek'},
+  {a:'Geçmişe gitmek',b:'Geleceğe gitmek'},{a:'Toplantısız ama 100 e-postalı gün',b:'E-postasız ama 6 toplantılı gün'},
+  {a:'Kışın sıcak içecek yasak',b:'Yazın dondurma yasak'},{a:'Hayvanlarla konuşabilmek',b:'Tüm dilleri bilmek'},
+  {a:'Günde 5 dk her şeyi bilmek',b:'Bir konuda dünyanın en iyisi olmak'},{a:'Sonsuz tatil',b:'Hayalindeki iş'},
+  {a:'Bir ay WiFi yok',b:'Bir ay kahve/çay yok'},{a:'Şarkı söyleyerek konuşmak',b:'Dans ederek yürümek'},
+  {a:'Geçmişteki bir hatanı silmek',b:'Geleceği bir kez görmek'},{a:'Her sabah 05:00\'te kalkmak',b:'Her gece 03:00\'te yatmak'},
+  {a:'Kamera hep açık',b:'Mikrofon hep açık'},{a:'Hep aynı yemeği yemek',b:'Her öğün sürpriz yemek (seçemezsin)'},
+  {a:'Zengin ama kimse tanımıyor',b:'Meşhur ama zengin değil'},{a:'Sadece film izleyebilmek',b:'Sadece dizi izleyebilmek'},
+  {a:'Klavye yok, her şey sesli',b:'Ses yok, her şey yazılı'},{a:'10 yıl önceki sana mesaj',b:'10 yıl sonraki senden mesaj'}
+ ],
+ tf:[
+  {s:'Bal, uygun saklanırsa binlerce yıl bozulmaz.',d:true,x:'Mısır piramitlerinde bulunan bal hâlâ yenilebilir durumdaydı.'},
+  {s:'Everest, Dünya\'nın merkezine en uzak noktadır.',d:false,x:'Ekvator şişkinliği yüzünden bu unvan Ekvador\'daki Chimborazo\'ya ait.'},
+  {s:'Ahtapotların üç kalbi vardır.',d:true,x:'İki kalp solungaçlara, biri vücuda kan pompalar.'},
+  {s:'Yıldırım aynı yere iki kez düşmez.',d:false,x:'Düşer — Empire State binasına yılda ~25 kez düşüyor.'},
+  {s:'İnsan DNA\'sının yaklaşık %60\'ı muzunkiyle aynıdır.',d:true,x:'Temel hücre işlevleri ortak genlerle çalışır.'},
+  {s:'Çin Seddi uzaydan çıplak gözle görülür.',d:false,x:'Astronotlar göremediklerini defalarca doğruladı.'},
+  {s:'Flamingolar pembe doğar.',d:false,x:'Gri doğarlar; rengi yedikleri karidesler ve alglerden alırlar.'},
+  {s:'Venüs\'te bir gün, bir yıldan uzundur.',d:true,x:'Kendi ekseninde dönüşü 243 gün, Güneş turu 225 gün.'},
+  {s:'İnsanlar beyinlerinin sadece %10\'unu kullanır.',d:false,x:'Beynin neredeyse tamamı aktif olarak kullanılır — bu bir şehir efsanesi.'},
+  {s:'Köpekbalıkları, ağaçlardan daha eskidir.',d:true,x:'Köpekbalıkları ~450, ağaçlar ~350 milyon yıldır var.'},
+  {s:'Botanik olarak muz bir üzümsü meyvedir (berry), çilek ise değildir.',d:true,x:'Botanik sınıflandırma sezgilere pek uymaz.'},
+  {s:'ABD kurulduğunda Osmanlı İmparatorluğu hâlâ ayaktaydı.',d:true,x:'Osmanlı 1922\'ye, ABD\'nin kuruluşu 1776\'ya dayanır.'},
+  {s:'Ses, uzay boşluğunda yayılmaz.',d:true,x:'Ses dalgaları taşıyıcı bir ortam (hava, su vb.) ister.'},
+  {s:'Bukalemunlar renk değiştirir çünkü esas amaçları kamuflajdır.',d:false,x:'Renk değişimi çoğunlukla iletişim ve ısı kontrolü içindir.'},
+  {s:'Kahve çekirdeği aslında bir meyvenin çekirdeğidir.',d:true,x:'Kahve kirazı denen meyvenin tohumudur.'},
+  {s:'İstanbul, iki kıtaya yayılan tek megakenttir.',d:true,x:'Hem Avrupa hem Asya yakasıyla benzersizdir.'},
+  {s:'Penguenler Kuzey Kutbu\'nda yaşar.',d:false,x:'Penguenler güney yarımkürede yaşar; kutup ayılarıyla hiç karşılaşmazlar.'},
+  {s:'Altın, yenilebilir bir maddedir.',d:true,x:'Saf altın tepkimeye girmez; E175 koduyla gıdada kullanılır.'},
+  {s:'Karıncalar hiç uyumaz.',d:false,x:'Günde yüzlerce kısa "şekerleme" yaparlar.'},
+  {s:'Bir kâğıdı 42 kez katlayabilsen kalınlığı Ay\'a ulaşırdı.',d:true,x:'Üstel büyüme: 2^42 × 0,1 mm ≈ 440.000 km.'}
+ ],
+ numg:[
+  {q:'Everest\'in zirvesi kaç metre?',a:8849},{q:'BM\'ye üye kaç ülke var?',a:193},
+  {q:'İnsan vücudunda (yetişkin) kaç kemik var?',a:206},{q:'Türkiye\'de kaç il var?',a:81},
+  {q:'Ay, Dünya\'ya ortalama kaç bin km uzaklıkta?',a:384},{q:'Titanic hangi yıl battı?',a:1912},
+  {q:'Dünyada yaklaşık kaç dil konuşuluyor?',a:7000},{q:'Piyanoda kaç tuş var?',a:88},
+  {q:'15 Temmuz Şehitler Köprüsü kaç metre uzunluğunda?',a:1560},{q:'Nil Nehri kaç km?',a:6650},
+  {q:'Güneş ışığı Dünya\'ya kaç dakikada ulaşır?',a:8},{q:'Türkiye\'nin kıyı şeridi kaç km?',a:8333},
+  {q:'İnsan kalbi günde yaklaşık kaç bin kez atar?',a:100},{q:'Bir satranç tahtasında kaç kare var?',a:64},
+  {q:'Eyfel Kulesi kaç metre (antensiz)?',a:300},{q:'Dünyanın çevresi (ekvator) kaç bin km?',a:40}
+ ]
+};
+const DECK_DEF={order:null,i:0,votes:{},revealed:false,ts:0};
+function deckSyncFactory(name){
+  return async function(){
+    await gSync(name, DECK_DEF, mergeDeckState);
+    if(!G[name].order){
+      G[name]={order:shuffleIdx(DECKS[name].length), i:0, votes:{}, revealed:false, ts:Date.now()};
+      await stSet(key(name), G[name]); renderCur();
+    }
+  };
+}
+['emoji','quickq','wyr','tf','numg'].forEach(n=>SYNCS[n]=deckSyncFactory(n));
+function deckMove(name,d){ if(!isFac()){ facBlock(); return; } gMut(name,DECK_DEF,mergeDeckState,s=>{ if(!s.order) s.order=shuffleIdx(DECKS[name].length); s.i=(s.i+d+s.order.length)%s.order.length; s.votes={}; s.revealed=false; }); }
+function deckShuffle(name){ if(!isFac()){ facBlock(); return; } gMut(name,DECK_DEF,mergeDeckState,s=>{ s.order=shuffleIdx(DECKS[name].length); s.i=0; s.votes={}; s.revealed=false; }); toast(t('Deste karıştırıldı 🔀')); }
+function deckReveal(name){ if(!isFac()){ facBlock(); return; } gMut(name,DECK_DEF,mergeDeckState,s=>{ s.revealed=true; }); }
+function deckVote(name,v){ gMut(name,DECK_DEF,mergeDeckState,s=>{ if(!s.revealed) s.votes[ME]=v; }); }
+function deckCard(name){ const s=G[name]; return s&&s.order? DECKS[name][s.order[s.i]] : null; }
+/* --- deste render'ları --- */
+RENDER.emoji=function(){
+  const s=G.emoji, c=deckCard('emoji'); if(!c) return;
+  document.getElementById('emCat').textContent=t(c.t).toUpperCase();
+  document.getElementById('emEmo').textContent=c.e;
+  const ans=document.getElementById('emAns');
+  ans.textContent=t(c.a); ans.classList.toggle('hidden-ans',!s.revealed);
+  document.getElementById('emReveal').disabled=s.revealed;
+  document.getElementById('emIdx').textContent=(s.i+1)+' / '+s.order.length;
+};
+RENDER.quickq=function(){
+  const s=G.quickq, c=deckCard('quickq'); if(!c) return;
+  document.getElementById('qqText').textContent=t(c);
+  document.getElementById('qqIdx').textContent=(s.i+1)+' / '+s.order.length;
+};
+function qqMove(d){ deckMove('quickq',d); }
+function qqShuffle(){ deckShuffle('quickq'); }
+RENDER.wyr=function(){
+  const s=G.wyr, c=deckCard('wyr'); if(!c) return;
+  const votes=s.votes||{}, n=Object.keys(votes).length;
+  const cA=Object.values(votes).filter(v=>v==='a').length, cB=n-cA;
+  document.getElementById('wyrBtns').innerHTML=['a','b'].map(k=>{
+    const cnt=k==='a'?cA:cB, pct=n?Math.round(cnt/n*100):0;
+    let cls='vbtn'; if(!s.revealed && votes[ME]===k) cls+=' sel';
+    if(s.revealed && cnt>=(k==='a'?cB:cA) && n) cls+=' win';
+    return '<button class="'+cls+'" onclick="deckVote(\'wyr\',\''+k+'\')">'+esc(t(c[k]))
+      +(s.revealed?'<span class="pct">%'+pct+' · '+cnt+t(' kişi')+'</span>':'')+'</button>';
+  }).join('');
+  document.getElementById('wyrIdx').textContent=(s.i+1)+' / '+s.order.length+' — '+n+t(' oy')+(s.revealed?'':t(' (gizli)'));
+  document.getElementById('wyrReveal').disabled=s.revealed;
+};
+RENDER.tf=function(){
+  const s=G.tf, c=deckCard('tf'); if(!c) return;
+  document.getElementById('tfQ').textContent=t(c.s);
+  const votes=s.votes||{}, n=Object.keys(votes).length;
+  const cD=Object.values(votes).filter(v=>v==='d').length, cY=n-cD;
+  document.getElementById('tfBtns').innerHTML=[['d',t('✅ Doğru'),cD],['y',t('❌ Yanlış'),cY]].map(([k,l,cnt])=>{
+    let cls='vbtn'; if(!s.revealed && votes[ME]===k) cls+=' sel';
+    if(s.revealed && ((k==='d')===c.d)) cls+=' win';
+    return '<button class="'+cls+'" onclick="deckVote(\'tf\',\''+k+'\')">'+l
+      +(s.revealed?'<span class="pct">'+cnt+t(' kişi')+'</span>':'')+'</button>';
+  }).join('');
+  document.getElementById('tfExp').textContent = s.revealed ? ((c.d?t('✅ DOĞRU — '):t('❌ YANLIŞ — '))+t(c.x)) : '';
+  document.getElementById('tfIdx').textContent=(s.i+1)+' / '+s.order.length+' — '+n+' oy';
+};
+function ngVote(){
+  const v=parseFloat(document.getElementById('ngGuess').value);
+  if(isNaN(v)){ toast(t('Bir sayı gir')); return; }
+  document.getElementById('ngGuess').value='';
+  deckVote('numg', v);
+}
+RENDER.numg=function(){
+  const s=G.numg, c=deckCard('numg'); if(!c) return;
+  document.getElementById('ngQ').textContent=t(c.q);
+  const votes=s.votes||{}, names=Object.keys(votes);
+  document.getElementById('ngResults').innerHTML=names.map(n=>{
+    const best = s.revealed && names.length && Math.abs(votes[n]-c.a)===Math.min(...names.map(x=>Math.abs(votes[x]-c.a)));
+    return '<div class="pkr"><div class="face'+(s.revealed?' open':'')+'" '+(best?'style="border-color:var(--green);"':'')+'>'
+      +(s.revealed?esc(String(votes[n]))+(best?' 🏆':''):'🂠')+'</div><div class="nm">'+esc(n)+'</div></div>';
+  }).join('') || '<p class="hint">'+t('Henüz tahmin yok.')+'</p>';
+  const st=document.getElementById('ngStat');
+  if(s.revealed && names.length){
+    const avg=names.reduce((a,n)=>a+votes[n],0)/names.length;
+    st.textContent=t('Gerçek: ')+c.a+t(' · Takım ortalaması: ')+Math.round(avg*10)/10;
+  } else st.textContent = names.length+t(' tahmin geldi 🤫');
+  document.getElementById('ngIdx').textContent=(s.i+1)+' / '+s.order.length;
+};
+
+/* ================= 2 dogru 1 yalan ================= */
+const PERMS=[[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); }
+const TTOL_DEF={players:{},votes:{},revealed:{},ts:0};
+function mergeTtol(a,b){
+  const out={players:{...a.players},votes:{},revealed:{...a.revealed,...b.revealed},ts:Math.max(a.ts||0,b.ts||0)};
+  for(const [n,p] of Object.entries(b.players||{})) if(!out.players[n]||p.ts>out.players[n].ts) out.players[n]=p;
+  new Set([...Object.keys(a.votes||{}),...Object.keys(b.votes||{})]).forEach(n=>{ out.votes[n]={...(a.votes||{})[n],...(b.votes||{})[n]}; });
+  return out;
+}
+let ttolSelected=null;
+SYNCS.ttol=()=>gSync('ttol',TTOL_DEF,mergeTtol);
+function ttolSubmit(){
+  const st=[0,1,2].map(i=>document.getElementById('tt'+i).value.trim());
+  if(st.some(x=>!x)){ toast(t('3 cümleyi de doldur')); return; }
+  const lie=+document.querySelector('input[name=lie]:checked').value;
+  gMut('ttol',TTOL_DEF,mergeTtol,s=>{ s.players[ME]={statements:st,lie,ts:Date.now()}; delete s.votes[ME]; delete s.revealed[ME]; });
+  toast(t('Cümlelerin kaydedildi 🤫'));
+}
+function ttolVote(t,di){
+  gMut('ttol',TTOL_DEF,mergeTtol,s=>{
+    const p=s.players[t]; if(!p) return;
+    const perm=PERMS[hashStr(t+p.ts)%6];
+    if(!s.votes[t]) s.votes[t]={}; s.votes[t][ME]=perm[di];
+  });
+}
+function ttolReveal(t){ if(!isFac()){ facBlock(); return; } gMut('ttol',TTOL_DEF,mergeTtol,s=>{ s.revealed[t]=true; }); }
+RENDER.ttol=function(){
+  const s=G.ttol||TTOL_DEF;
+  const box=document.getElementById('ttolRight'), title=document.getElementById('ttolRightTitle');
+  const names=Object.keys(s.players);
+  if(ttolSelected && s.players[ttolSelected]){
+    const t2=ttolSelected, p=s.players[t2], perm=PERMS[hashStr(t2+p.ts)%6];
+    const votes=s.votes[t2]||{}, rv=!!s.revealed[t2], my=votes[ME];
+    title.innerHTML='<button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;" onclick="ttolSelected=null;renderCur()">←</button> '+esc(t2)+t(' — hangisi yalan?');
+    box.innerHTML=perm.map((orig,di)=>{
+      const cnt=Object.values(votes).filter(v=>v===orig).length;
+      let cls='stcard', tag='';
+      if(rv){ cls+=orig===p.lie?' lie-yes':' lie-no'; tag='<span class="tag" style="background:'+(orig===p.lie?'var(--red)':'var(--green)')+'">'+(orig===p.lie?t('YALAN 🤥'):t('DOĞRU ✓'))+'</span>'; }
+      else if(my===orig) cls+=' picked';
+      return '<button class="'+cls+'" '+((rv||t2===ME)?'':'onclick="ttolVote(\''+esc(t2)+'\','+di+')"')+'>'+tag+esc(p.statements[orig])
+        +((rv||t2===ME)?'<span class="votes">'+cnt+t(' oy')+'</span>':(my===orig?'<span class="votes">'+t('senin tahminin')+'</span>':''))+'</button>';
+    }).join('')
+    +'<div style="display:flex; gap:8px; margin-top:4px;">'
+    +(rv?'':'<button class="btn btn-red'+(isFac()?'':' fac-only')+'" '+(isFac()?'':'disabled')+' onclick="ttolReveal(\''+esc(t2)+'\')">'+t('Yalanı açıkla')+'</button>')
+    +'<span class="hint" style="align-self:center;">'+Object.keys(votes).length+t(' kişi oy verdi')+'</span></div>';
+  } else {
+    title.textContent=t('Oyuncular 👥');
+    box.innerHTML=names.length?names.map(n=>{
+      const v=Object.keys(s.votes[n]||{}).length, rv=s.revealed[n];
+      return '<button class="prow" onclick="ttolSelected=\''+esc(n)+'\';renderCur()">🙋 '+esc(n)+(n===ME?t(' (sen)'):'')+'<span class="st">'+(rv?t('açıklandı'):v+t(' oy'))+'</span></button>';
+    }).join(''):'<p class="hint">'+t('Henüz kimse cümle göndermedi.')+'</p>';
+  }
+};
+
+/* ================= kim bu ================= */
+const WD_DEF={facts:{},votes:{},revealed:{},ts:0};
+function mergeWd(a,b){
+  const out={facts:{...a.facts},votes:{},revealed:{...a.revealed,...b.revealed},ts:Math.max(a.ts||0,b.ts||0)};
+  for(const [id,f] of Object.entries(b.facts||{})) if(!out.facts[id]||f.ts>out.facts[id].ts) out.facts[id]=f;
+  new Set([...Object.keys(a.votes||{}),...Object.keys(b.votes||{})]).forEach(id=>{ out.votes[id]={...(a.votes||{})[id],...(b.votes||{})[id]}; });
+  return out;
+}
+let wdSelected=null;
+SYNCS.whodis=()=>gSync('whodis',WD_DEF,mergeWd);
+function wdSubmit(){
+  const txt=document.getElementById('wdFact').value.trim();
+  if(!txt){ toast(t('Bir gerçek yaz')); return; }
+  document.getElementById('wdFact').value='';
+  gMut('whodis',WD_DEF,mergeWd,s=>{
+    for(const [id,f] of Object.entries(s.facts)) if(f.author===ME){ delete s.facts[id]; delete s.votes[id]; delete s.revealed[id]; }
+    s.facts[uid()]={text:txt,author:ME,ts:Date.now()};
+  });
+  toast(t('Anonim gönderildi 🎭'));
+}
+function wdVote(id,guess){ gMut('whodis',WD_DEF,mergeWd,s=>{ if(!s.votes[id]) s.votes[id]={}; s.votes[id][ME]=guess; }); }
+function wdReveal(id){ if(!isFac()){ facBlock(); return; } gMut('whodis',WD_DEF,mergeWd,s=>{ s.revealed[id]=true; }); }
+RENDER.whodis=function(){
+  const s=G.whodis||WD_DEF;
+  const box=document.getElementById('wdRight'), title=document.getElementById('wdRightTitle');
+  const ids=Object.keys(s.facts).sort();
+  const authors=[...new Set(Object.values(s.facts).map(f=>f.author))].sort();
+  if(wdSelected && s.facts[wdSelected]){
+    const id=wdSelected, f=s.facts[id], votes=s.votes[id]||{}, rv=!!s.revealed[id], mine=f.author===ME;
+    title.innerHTML='<button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;" onclick="wdSelected=null;renderCur()">←</button> '+t('Kim yazdı?');
+    box.innerHTML='<div class="stcard" style="font-family:var(--hand); font-size:20px;">"'+esc(f.text)+'"'
+      +(rv?'<span class="tag" style="background:var(--blue)">✍️ '+esc(f.author)+'</span>':'')+'</div>'
+    + authors.map(a=>{
+        const cnt=Object.values(votes).filter(v=>v===a).length;
+        let cls='prow'; if(!rv && votes[ME]===a) cls+=' picked';
+        return '<button class="'+cls+'" style="'+((!rv&&votes[ME]===a)?'border-color:var(--blue);':'')+'" '+((rv||mine)?'':'onclick="wdVote(\''+id+'\',\''+esc(a)+'\')"')+'>🎭 '+esc(a)
+          +'<span class="st">'+((rv||mine)?cnt+t(' oy'):(votes[ME]===a?t('tahminin'):''))+'</span></button>';
+      }).join('')
+    +'<div style="display:flex; gap:8px; margin-top:4px;">'
+    +(rv?'':'<button class="btn btn-red'+(isFac()?'':' fac-only')+'" '+(isFac()?'':'disabled')+' onclick="wdReveal(\''+id+'\')">'+t('Yazarı açıkla')+'</button>')
+    +'<span class="hint" style="align-self:center;">'+Object.keys(votes).length+t(' tahmin')+(mine?t(' · bu senin cümlen 🤫'):'')+'</span></div>';
+  } else {
+    title.textContent=t('Gerçekler 🔍')+' ('+ids.length+')';
+    box.innerHTML=ids.length?ids.map((id,i)=>{
+      const rv=s.revealed[id], v=Object.keys(s.votes[id]||{}).length;
+      return '<button class="prow" onclick="wdSelected=\''+id+'\';renderCur()">#'+(i+1)+' — "'+esc(s.facts[id].text.slice(0,60))+(s.facts[id].text.length>60?'…':'')+'"<span class="st">'+(rv?'✍️ '+esc(s.facts[id].author):v+t(' tahmin'))+'</span></button>';
+    }).join(''):'<p class="hint">'+t('Henüz gerçek gönderilmedi.')+'</p>';
+  }
+};
+/* ================= bir kelimeyle ================= */
+const OW_DEF={words:{},round:1,ts:0};
+SYNCS.oneword=()=>gSync('oneword',OW_DEF,mergePerName('words'));
+function owSubmit(){
+  const w=document.getElementById('owWord').value.trim().split(/\s+/)[0];
+  if(!w){ toast(t('Tek kelime yaz')); return; }
+  document.getElementById('owWord').value='';
+  gMut('oneword',OW_DEF,mergePerName('words'),s=>{ s.words[ME]={w:trLow(w),ts:Date.now()}; });
+}
+function owReset(){ if(!isFac()){ facBlock(); return; } gMut('oneword',OW_DEF,(a,b)=>((b.round||0)>(a.round||0)?b:a),s=>{ s.words={}; s.round=(s.round||1)+1; }); }
+RENDER.oneword=function(){
+  const s=G.oneword||OW_DEF;
+  const counts={};
+  Object.values(s.words||{}).forEach(o=>{ counts[o.w]=(counts[o.w]||0)+1; });
+  const entries=Object.entries(counts);
+  const cols=['var(--blue)','var(--red)','var(--green)','var(--amber)','#7C3AED'];
+  document.getElementById('owCloud').innerHTML = entries.length
+    ? entries.sort((a,b)=>b[1]-a[1]).map(([w,c],i)=>'<span style="font-size:'+(22+Math.min(c-1,4)*14)+'px; color:'+cols[i%5]+'">'+esc(w)+(c>1?' ×'+c:'')+'</span>').join('')
+    : '<span class="hint">'+t('Kelimeler burada belirecek...')+'</span>';
+};
+
+/* ================= duygu barometresi ================= */
+const MOODS=[{e:'🤩',l:'Harika'},{e:'🙂',l:'İyi'},{e:'😐',l:'İdare eder'},{e:'😮‍💨',l:'Yorgun'},{e:'😖',l:'Zorlanıyorum'}];
+const MOOD_DEF={votes:{},round:1,ts:0};
+SYNCS.mood=()=>gSync('mood',MOOD_DEF,mergePerName('votes'));
+function moodVote(i){ gMut('mood',MOOD_DEF,mergePerName('votes'),s=>{ s.votes[ME]={v:i,ts:Date.now()}; }); }
+function moodReset(){ if(!isFac()){ facBlock(); return; } gMut('mood',MOOD_DEF,(a,b)=>((b.round||0)>(a.round||0)?b:a),s=>{ s.votes={}; s.round=(s.round||1)+1; }); }
+RENDER.mood=function(){
+  const s=G.mood||MOOD_DEF, my=s.votes[ME]&&s.votes[ME].v;
+  document.getElementById('moodBtns').innerHTML=MOODS.map((m,i)=>
+    '<button class="moodbtn'+(my===i?' sel':'')+'" onclick="moodVote('+i+')"><span class="e">'+m.e+'</span><span class="l">'+t(m.l)+'</span></button>').join('');
+  const total=Object.keys(s.votes).length||1;
+  const cols=['var(--green)','#6BBF59','var(--amber)','#E8742C','var(--red)'];
+  document.getElementById('moodBars').innerHTML=MOODS.map((m,i)=>{
+    const who=Object.entries(s.votes).filter(([,o])=>o.v===i).map(([n])=>n);
+    return '<div class="bar"><div class="lab">'+m.e+' '+t(m.l)+'</div><div class="track"><div class="fill" style="background:'+cols[i]+'; width:'+(who.length/total*100)+'%;">'+(who.length?esc(who.join(', ')):'')+'</div></div></div>';
+  }).join('');
+};
+
+/* ================= liste oyunları: ortak nokta / zincir / hikaye ================= */
+const LIST_DEF={items:[],ts:0};
+['common','chain','story'].forEach(n=>SYNCS[n]=()=>gSync(n,LIST_DEF,mergeItems));
+function listAdd(name, inputId, extraCheck){
+  const inp=document.getElementById(inputId); const txt=inp.value.trim();
+  if(!txt){ toast(t('Önce bir şey yaz')); return; }
+  if(extraCheck){ const err=extraCheck(txt); if(err){ toast(err); return; } }
+  inp.value='';
+  gMut(name,LIST_DEF,mergeItems,s=>{ s.items.push({id:uid(),text:txt,author:ME,ts:Date.now()}); });
+}
+function listDel(name,id){ gMut(name,LIST_DEF,mergeItems,s=>{ const it=s.items.find(i=>i.id===id); if(it){ it.del=true; it.ts=Date.now(); } }); }
+function listReset(name){ if(!isFac()){ facBlock(); return; } gMut(name,LIST_DEF,mergeItems,s=>{ s.items.forEach(it=>{ it.del=true; it.ts=Date.now(); }); }); }
+function liveItems(name){ return ((G[name]||LIST_DEF).items||[]).filter(i=>!i.del); }
+RENDER.common=function(){
+  const items=liveItems('common');
+  document.getElementById('commonCount').textContent='🎯 '+items.length+t(' ortak nokta bulundu')+(items.length>=10?t(' — hedef tamam! 🎉'):'');
+  document.getElementById('commonList').innerHTML=items.map(it=>
+    '<div class="prow">✦ '+esc(it.text)+'<span class="st">'+esc(it.author)+'</span>'+(it.author===ME?'<button class="x" onclick="listDel(\'common\',\''+it.id+'\')">✕</button>':'')+'</div>').join('')
+    ||'<p class="hint">'+t('İlk ortak noktayı sen ekle!')+'</p>';
+};
+function chainAdd(){
+  const items=liveItems('chain');
+  listAdd('chain','chWord',txt=>{
+    const w=trLow(txt.split(/\s+/)[0]);
+    if(items.length){
+      const last=items[items.length-1];
+      if(last.author===ME) return t('Üst üste iki kelime ekleyemezsin — sıra arkadaşında 😄');
+      let lw=trLow(last.text); let target=lw[lw.length-1];
+      if(target==='ğ') target=lw[lw.length-2];
+      if(w[0]!==target) return '"'+trUp(target)+'"'+t(' ile başlamalı!');
+      if(items.some(i=>trLow(i.text)===w)) return t('Bu kelime zaten kullanıldı!');
+    }
+    return null;
+  });
+}
+RENDER.chain=function(){
+  const items=liveItems('chain');
+  document.getElementById('chainScore').textContent=t('🔗 Zincir: ')+items.length+t(' halka')+(items.length>=20?t(' — efsane! 🏆'):'');
+  document.getElementById('chainChips').innerHTML=items.map(it=>'<span class="chip">'+esc(trLow(it.text))+' <small>'+esc(it.author)+'</small></span>').join(' <span style="color:var(--muted)">→</span> ')
+    ||'<p class="hint">'+t('İlk kelimeyi yaz, zincir başlasın.')+'</p>';
+};
+const STORY_STARTERS=['Sprint demosunun tam ortasında bütün ekranlar aniden karardı...','Ofise girdiğimizde masanın üstünde gizemli bir kutu duruyordu...','Stand-up tam başlayacakken kapıdan bir lama girdi...','Yıl 2035; takımımız Mars\'taki ilk scrum takımı olarak seçilmişti...','O sabah kahve makinesi konuşmaya başladı...','Retro toplantısında biri "itiraf etmem gereken bir şey var" dedi...','Asansörde genel müdürle 10 kat boyunca yalnız kaldık ve...','Projenin kod adı yanlışlıkla müşteriye "Operasyon Pofuduk" olarak gitti...'];
+function storyAdd(){
+  const items=liveItems('story');
+  listAdd('story','stWord',()=> (items.length && items[items.length-1].author===ME) ? t('Üst üste iki cümle yazamazsın — sıra arkadaşında 😄') : null);
+}
+function storyStarter(){
+  if(liveItems('story').length){ toast(t('Hikaye zaten başladı!')); return; }
+  const starter=t(STORY_STARTERS[Math.floor(Math.random()*STORY_STARTERS.length)]);
+  gMut('story',LIST_DEF,mergeItems,s=>{ s.items.push({id:uid(),text:starter,author:'🎲',ts:Date.now()}); });
+}
+RENDER.story=function(){
+  const items=liveItems('story');
+  document.getElementById('storyText').innerHTML=items.length
+    ? items.map(it=>esc(it.text)+' <b>'+esc(it.author)+'</b>').join(' ')
+    : '<span class="hint">'+t('Henüz hikaye yok. İlk cümleyi sen yaz ya da 🎲 ile başla!')+'</span>';
+};
+
+/* ================= adam asmaca ================= */
+const HM_LETTERS_TR='ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ'.split('');
+const HM_LETTERS_EN='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+function hmLetters(){ return LANG==='en' ? HM_LETTERS_EN : HM_LETTERS_TR; }
+const HM_FACES=['😀','🙂','😐','😟','😰','😵','💀'];
+const HM_DEF={word:'',setter:'',guessed:[],round:0,ts:0};
+function mergeHm(a,b){
+  if((b.round||0)>(a.round||0)) return b;
+  if((a.round||0)>(b.round||0)) return a;
+  const newer=(b.ts||0)>=(a.ts||0)?b:a;
+  return {...newer, guessed:[...new Set([...(a.guessed||[]),...(b.guessed||[])])]};
+}
+SYNCS.hangman=()=>gSync('hangman',HM_DEF,mergeHm);
+function hmSet(){
+  const w=trUp(document.getElementById('hmWord').value.trim().replace(/[^a-zA-ZçÇğĞıİöÖşŞüÜ]/g,''));
+  if(w.length<3){ toast(t('En az 3 harfli bir kelime yaz')); return; }
+  gMut('hangman',HM_DEF,mergeHm,s=>{ s.word=w; s.setter=ME; s.guessed=[]; s.round=(s.round||0)+1; });
+  toast(t('Kelime hazır! Takım tahmin etsin 🤫'));
+}
+function hmGuess(L){ gMut('hangman',HM_DEF,mergeHm,s=>{ if(s.word && !s.guessed.includes(L)) s.guessed.push(L); }); }
+function hmNew(){ if(!isFac()){ facBlock(); return; } gMut('hangman',HM_DEF,mergeHm,s=>{ s.word=''; s.setter=''; s.guessed=[]; s.round=(s.round||0)+1; }); }
+RENDER.hangman=function(){
+  const s=G.hangman||HM_DEF, el=document.getElementById('hmStage');
+  if(!s.word){
+    el.innerHTML='<div class="cat">'+t('KELİMEYİ BELİRLE — TAKIM ÇÖZSÜN')+'</div>'
+      +'<div style="display:flex; gap:8px; max-width:380px; margin:18px auto 0;">'
+      +'<input class="field" id="hmWord" maxlength="20" placeholder="'+t('gizli kelime...')+'" onkeydown="if(event.key===\'Enter\')hmSet()">'
+      +'<button class="btn btn-ink" onclick="hmSet()">'+t('Başlat')+'</button></div>'
+      +'<p class="hint" style="margin-top:12px;">'+t('Kelimeyi yazan kişi tahmin etmez, sadece izler ve gülümser 😏 6 yanlış hakkınız var.')+'</p>';
+    return;
+  }
+  const wrong=s.guessed.filter(L=>!s.word.includes(L));
+  const shown=s.word.split('').map(ch=>s.guessed.includes(ch)?ch:'_').join(' ');
+  const won=!shown.includes('_'), lost=wrong.length>=6, over=won||lost, mine=s.setter===ME;
+  el.innerHTML='<div class="cat">'+esc(s.setter)+t(' KELİMEYİ BELİRLEDİ — ')+(6-wrong.length)+t(' CAN KALDI')+'</div>'
+    +'<div class="big" style="letter-spacing:0;">'+HM_FACES[Math.min(wrong.length,6)]+'</div>'
+    +'<div class="hword">'+(over?s.word.split('').join(' '):shown)+'</div>'
+    +(won?'<div class="ans">'+t('🎉 Takım kazandı!')+'</div>':'')
+    +(lost?'<div class="ans" style="color:var(--red)">'+t('💀 Asıldık! Kelime: ')+esc(s.word)+'</div>':'')
+    +(mine&&!over?'<p class="hint">'+t('Kelimen: ')+esc(s.word)+t(' (sadece sen görüyorsun*)')+'</p>':'')
+    +'<div class="lgrid">'+hmLetters().map(L=>{
+      const g=s.guessed.includes(L), hit=g&&s.word.includes(L);
+      return '<button class="'+(g?(hit?'hit':'miss'):'')+'" '+((g||over||mine)?'disabled':'')+' onclick="hmGuess(\''+L+'\')">'+L+'</button>';
+    }).join('')+'</div>'
+    +'<div class="ctrls"><button class="btn btn-ghost'+(isFac()?'':' fac-only')+'" '+(isFac()?'':'disabled')+' onclick="hmNew()">'+t('🔄 Yeni kelime')+'</button></div>'
+    +(wrong.length?'<p class="hint" style="margin-top:8px;">'+t('Yanlışlar: ')+wrong.join(', ')+'</p>':'');
+};
+/* ================= takim sagligi ================= */
+const H_CATS=['Teslimat & Hız','Takım İçi İletişim','Öğrenme & Gelişim','Süreçler & Araçlar','İş-Yaşam Dengesi','Eğlence & Moral'];
+const H_DEF={votes:{},round:1,ts:0};
+SYNCS.health=()=>gSync('health',H_DEF,mergePerName('votes'));
+function healthVote(ci,val){
+  gMut('health',H_DEF,mergePerName('votes'),s=>{
+    const mine=s.votes[ME]?[...(s.votes[ME].vals||[])]:[];
+    mine[ci]=val; s.votes[ME]={vals:mine,ts:Date.now()};
+  });
+}
+function healthReset(){ if(!isFac()){ facBlock(); return; } gMut('health',H_DEF,(a,b)=>((b.round||0)>(a.round||0)?b:a),s=>{ s.votes={}; s.round=(s.round||1)+1; }); }
+RENDER.health=function(){
+  const s=G.health||H_DEF, mine=(s.votes[ME]&&s.votes[ME].vals)||[];
+  const HCOLS=['var(--green)','var(--amber)','var(--red)'], HEMO=['🟢','🟡','🔴'];
+  document.getElementById('healthRows').innerHTML=H_CATS.map((c,ci)=>{
+    const counts=[0,0,0];
+    Object.values(s.votes).forEach(v=>{ const x=(v.vals||[])[ci]; if(x!=null) counts[x]++; });
+    const tot=counts[0]+counts[1]+counts[2];
+    return '<div class="hrow"><div class="hn">'+t(c)+'</div><div class="lights">'
+      +[0,1,2].map(v=>'<button class="hlight'+(mine[ci]===v?' sel':'')+'" onclick="healthVote('+ci+','+v+')">'+HEMO[v]+'</button>').join('')
+      +'</div><div class="hagg">'+(tot?[0,1,2].map(v=>counts[v]?'<div style="background:'+HCOLS[v]+'; width:'+(counts[v]/tot*100)+'%;">'+counts[v]+'</div>':'').join(''):'')+'</div></div>';
+  }).join('');
+  document.getElementById('healthWho').textContent=Object.keys(s.votes).length+t(' kişi oy verdi');
+};
+
+/* ================= planlama pokeri & besle oyla ================= */
+const PK_DECK=['0','1','2','3','5','8','13','21','?','☕'];
+const PK_DEF={round:1,votes:{},revealed:false,ts:0};
+SYNCS.poker=()=>gSync('poker',PK_DEF,mergeRound);
+ONENTER.poker=()=>{ document.getElementById('pkCards').innerHTML=PK_DECK.map(v=>'<button class="pkc" data-v="'+v+'" onclick="pokerVote(\''+v+'\')">'+v+'</button>').join(''); };
+function pokerVote(v){ gMut('poker',PK_DEF,mergeRound,s=>{ if(s.revealed){ toast(t('Kartlar açık — yeni tur başlat')); return; } s.votes[ME]=v; }); }
+function pokerReveal(){ if(!isFac()){ facBlock(); return; } gMut('poker',PK_DEF,mergeRound,s=>{ s.revealed=true; }); }
+function pokerNewRound(){ if(!isFac()){ facBlock(); return; } gMut('poker',PK_DEF,mergeRound,s=>{ s.round=(s.round||1)+1; s.votes={}; s.revealed=false; }); }
+RENDER.poker=function(){
+  const s=G.poker||PK_DEF;
+  document.getElementById('pkTitle').textContent=t('Tur ')+(s.round||1)+t(' — kartını seç');
+  document.querySelectorAll('#pkCards .pkc').forEach(b=>b.classList.toggle('sel', s.votes[ME]===b.dataset.v&&!s.revealed));
+  const names=Object.keys(s.votes);
+  document.getElementById('pkResults').innerHTML=names.map(n=>
+    '<div class="pkr"><div class="face'+(s.revealed?' open':'')+'">'+(s.revealed?esc(s.votes[n]):'🂠')+'</div><div class="nm">'+esc(n)+'</div></div>').join('')
+    ||'<p class="hint">'+t('Henüz oy yok.')+'</p>';
+  const st=document.getElementById('pkStat');
+  if(s.revealed&&names.length){
+    const nums=names.map(n=>parseFloat(s.votes[n])).filter(x=>!isNaN(x));
+    if(nums.length){
+      const avg=(nums.reduce((a,b)=>a+b,0)/nums.length).toFixed(1), spread=Math.max(...nums)-Math.min(...nums);
+      st.textContent=t('Ortalama: ')+avg+(spread>=8?t(' — ⚠️ Konsensüs yok, tartışın!'):t(' — ✅ Konsensüs var'));
+    } else st.textContent=t('Sayısal oy yok ☕');
+  } else st.textContent=s.revealed?'':names.length+t(' kişi oy verdi 🤫');
+};
+const FS_DEF={round:1,votes:{},revealed:false,label:'',ts:0};
+function mergeFist(a,b){ const m=mergeRound(a,b); if(!m.label){ m.label=a.label||b.label||''; } return m; }
+SYNCS.fist=()=>gSync('fist',FS_DEF,mergeFist);
+ONENTER.fist=()=>{ document.getElementById('fsCards').innerHTML=[1,2,3,4,5].map(v=>'<button class="pkc" data-v="'+v+'" onclick="fistVote('+v+')">'+v+'</button>').join(''); };
+function fistLabel(){ if(!isFac()){ facBlock(); return; } const l=document.getElementById('fsLabel').value.trim(); gMut('fist',FS_DEF,mergeFist,s=>{ s.label=l; }); }
+function fistPreset(){
+  if(!isFac()){ facBlock(); return; }
+  const label=t('Bu sprint hedefini başaracağımıza güvenim kaç?');
+  document.getElementById('fsLabel').value=label;
+  gMut('fist',FS_DEF,mergeFist,s=>{ s.label=label; });
+}
+function fistVote(v){ gMut('fist',FS_DEF,mergeFist,s=>{ if(!s.revealed) s.votes[ME]=v; }); }
+function fistReveal(){ if(!isFac()){ facBlock(); return; } gMut('fist',FS_DEF,mergeFist,s=>{ s.revealed=true; }); }
+function fistNewRound(){ if(!isFac()){ facBlock(); return; } gMut('fist',FS_DEF,mergeFist,s=>{ s.round=(s.round||1)+1; s.votes={}; s.revealed=false; s.label=''; }); document.getElementById('fsLabel').value=''; }
+RENDER.fist=function(){
+  const s=G.fist||FS_DEF;
+  const li=document.getElementById('fsLabel');
+  if(document.activeElement!==li) li.value=s.label||'';
+  document.querySelectorAll('#fsCards .pkc').forEach(b=>b.classList.toggle('sel', s.votes[ME]==b.dataset.v&&!s.revealed));
+  const names=Object.keys(s.votes);
+  document.getElementById('fsResults').innerHTML=names.map(n=>
+    '<div class="pkr"><div class="face'+(s.revealed?' open':'')+'">'+(s.revealed?s.votes[n]:'🂠')+'</div><div class="nm">'+esc(n)+'</div></div>').join('')
+    ||'<p class="hint">'+t('Henüz oy yok.')+'</p>';
+  const st=document.getElementById('fsStat');
+  if(s.revealed&&names.length){
+    const nums=names.map(n=>+s.votes[n]);
+    const avg=(nums.reduce((a,b)=>a+b,0)/nums.length).toFixed(1), min=Math.min(...nums);
+    st.textContent=t('Ortalama: ')+avg+(min<=2?t(' — ⚠️ düşük oy verenleri dinleyin'):t(' ✅ takım hizalı'));
+  } else st.textContent=s.revealed?'':names.length+t(' oy geldi 🤫');
+};
+
+/* ================= kod adlari ================= */
+const CN_WORDS=['ELMA','DENİZ','KALEM','AY','YILDIZ','KÖPRÜ','ASLAN','ROBOT','PASTA','ORMAN','GÖLGE','ZAMAN','KUTU','ANAHTAR','DAĞ','NEHİR','KAPTAN','DOKTOR','OKUL','TREN','UÇAK','BALIK','KEDİ','KURT','AYNA','SAAT','MASA','LAMBA','KİTAP','MÜZİK','DANS','FUTBOL','KALE','KRAL','KRALİÇE','ŞÖVALYE','BÜYÜCÜ','EJDERHA','HAZİNE','KORSAN','ADA','ÇÖL','BUZ','ATEŞ','RÜZGAR','YAĞMUR','BULUT','GÜNEŞ','TOHUM','ÇİÇEK','ARI','ÖRÜMCEK','YILAN','KARTAL','MARTI','İĞNE','İP','DÜĞME','MAKAS','KAĞIT','TAŞ','CAM','DEMİR','ALTIN','GÜMÜŞ','ELMAS','İNCİ','YÜZÜK','TAÇ','KILIÇ','KALKAN','OK','YAY','TUZAK','KÖSTEBEK','AJAN','ŞİFRE','MASKE','PELERİN','KAHVE','ÇAY','ŞEKER','LİMON','PORTAKAL','KİRAZ','ÜZÜM','KARPUZ','EKMEK','PEYNİR','ZEYTİN','BAL','SÜT','YUMURTA','PAZAR','ÇARŞI','LİMAN','FENER','ÇAPA','YELKEN','DALGA','KUM','MİDYE','YENGEÇ','AHTAPOT','BALİNA','KUYRUK','KANAT','TÜY','YUVA','KAFES','ZİL','DAVUL','GİTAR','KEMAN','SAHNE','PERDE','KUKLA','SİRK','PALYAÇO','JOKER','ZAR','PİYON','SATRANÇ','HEDEF','SKOR','TAKIM','KOÇ','HAKEM','DÜDÜK','MADALYA','KUPA','BAYRAK','HARİTA','PUSULA','ÇADIR','MUM','KİBRİT','DUMAN','KÜL','VOLKAN','DEPREM','FIRTINA','ŞİMŞEK','GÖKKUŞAĞI','KUTUP','PENGUEN','DEVE','PİRAMİT','FİRAVUN','MUMYA','LABİRENT','KULE','ZİNDAN','KÖŞK','SARAY','HAMAM','ÇEŞME','KERVAN','HALI','KİLİM','NAZAR','SİMİT','BOĞAZ','VAPUR','TRAMVAY','TÜNEL'];
+const CN_DEF={words:null,colors:null,revealed:null,first:'',over:null,game:0,ts:0};
+function mergeCn(a,b){
+  if((b.game||0)>(a.game||0)) return b;
+  if((a.game||0)>(b.game||0)) return a;
+  const newer=(b.ts||0)>=(a.ts||0)?b:a;
+  const out={...newer};
+  if(a.revealed&&b.revealed&&a.revealed.length===b.revealed.length){
+    out.revealed=a.revealed.map((v,i)=>v||b.revealed[i]);
+    out.over=a.over||b.over;
+  }
+  return out;
+}
+SYNCS.codenames=()=>gSync('codenames',CN_DEF,mergeCn);
+function cnNew(){ if(!isFac()){ facBlock(); return; }
+  const pool=[...CN_WORDS], words=[];
+  for(let i=0;i<25;i++) words.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  const first=Math.random()<.5?'red':'blue';
+  const colors=[...Array(first==='red'?9:8).fill('red'),...Array(first==='blue'?9:8).fill('blue'),...Array(7).fill('neutral'),'assassin'];
+  for(let i=colors.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [colors[i],colors[j]]=[colors[j],colors[i]]; }
+  gMut('codenames',CN_DEF,mergeCn,s=>{ s.words=words; s.colors=colors; s.revealed=Array(25).fill(false); s.first=first; s.over=null; s.game=(s.game||0)+1; });
+  toast(t(first==='red'?'🔴 Kırmızı':'🔵 Mavi')+t(' takım başlıyor!'));
+}
+function cnClick(i){
+  gMut('codenames',CN_DEF,mergeCn,s=>{
+    if(!s.words||s.revealed[i]||s.over) return;
+    s.revealed[i]=true;
+    if(s.colors[i]==='assassin') s.over='assassin';
+    else{
+      const left=c=>s.colors.filter((x,j)=>x===c&&!s.revealed[j]).length;
+      if(left('red')===0) s.over='red';
+      if(left('blue')===0) s.over='blue';
+    }
+  });
+}
+RENDER.codenames=function(){
+  const s=G.codenames||CN_DEF;
+  const grid=document.getElementById('cnGrid'), msg=document.getElementById('cnMsg');
+  if(!s.words){ grid.innerHTML='<p class="hint" style="grid-column:1/-1; padding:30px; text-align:center;">'+t('"Yeni oyun" ile 5×5 tahtayı oluştur.')+'</p>'; msg.textContent=''; return; }
+  const spy=document.getElementById('spyToggle').checked;
+  grid.innerHTML=s.words.map((w,i)=>{
+    let cls='cncell';
+    if(s.revealed[i]) cls+=' rv-'+s.colors[i];
+    else if(spy) cls+=' spy-'+s.colors[i];
+    return '<button class="'+cls+'" onclick="cnClick('+i+')">'+esc(t(w))+'</button>';
+  }).join('');
+  const left=c=>s.colors.filter((x,j)=>x===c&&!s.revealed[j]).length;
+  document.getElementById('cnBlue').textContent='🔵 '+left('blue');
+  document.getElementById('cnRed').textContent='🔴 '+left('red');
+  msg.textContent=s.over==='assassin'?t('💀 Suikastçı! Kartı açan takım kaybetti.'):s.over?t('🏆 ')+t(s.over==='red'?'Kırmızı':'Mavi')+t(' kazandı!'):(s.first==='red'?t('🔴 önce'):t('🔵 önce'));
+};
+
+/* ================= lean coffee ================= */
+const LC_DEF={items:{},votes:{},done:{},current:'',ts:0};
+function mergeLC(a,b){
+  const items={...(a.items||{})};
+  for(const [id,it] of Object.entries(b.items||{})) if(!items[id]||it.ts>items[id].ts) items[id]=it;
+  const votes={};
+  new Set([...Object.keys(a.votes||{}),...Object.keys(b.votes||{})]).forEach(id=>{ votes[id]={...(a.votes||{})[id],...(b.votes||{})[id]}; });
+  const newer=(b.ts||0)>=(a.ts||0)?b:a;
+  return {...newer, items, votes, done:{...(a.done||{}),...(b.done||{})}};
+}
+SYNCS.leancoffee=()=>gSync('leancoffee',LC_DEF,mergeLC);
+function lcAdd(){
+  const inp=document.getElementById('lcTopic'), txt=inp.value.trim();
+  if(!txt){ toast(t('Önce bir şey yaz')); return; }
+  inp.value='';
+  gMut('leancoffee',LC_DEF,mergeLC,s=>{ s.items[uid()]={text:txt,author:ME,ts:Date.now()}; });
+}
+function lcVote(id){
+  gMut('leancoffee',LC_DEF,mergeLC,s=>{
+    if(!s.votes[id]) s.votes[id]={};
+    if(s.votes[id][ME]) delete s.votes[id][ME]; else s.votes[id][ME]=true;
+  });
+}
+function lcNext(){
+  if(!isFac()){ facBlock(); return; }
+  gMut('leancoffee',LC_DEF,mergeLC,s=>{
+    if(s.current) s.done[s.current]=true;
+    const cands=Object.keys(s.items).filter(id=>!s.done[id]&&id!==s.current);
+    cands.sort((a,b)=>Object.keys(s.votes[b]||{}).length-Object.keys(s.votes[a]||{}).length);
+    s.current=cands[0]||'';
+  });
+}
+RENDER.leancoffee=function(){
+  const s=G.leancoffee||LC_DEF;
+  const cur=document.getElementById('lcCurrent');
+  if(s.current && s.items[s.current]){
+    const it=s.items[s.current], vc=Object.keys(s.votes[s.current]||{}).length;
+    cur.innerHTML='<div class="stcard" style="border-color:var(--blue); background:rgba(43,91,215,.06);"><span class="tag" style="background:var(--blue);">'+t('ŞİMDİ')+'</span>'+esc(it.text)+'<span class="votes">👍 '+vc+'</span></div>';
+  } else cur.innerHTML='<p class="hint">'+t('Henüz konu seçilmedi — konu ekleyin, facilitator sıradakini seçsin.')+'</p>';
+  const ids=Object.keys(s.items).filter(id=>id!==s.current).sort((a,b)=>Object.keys(s.votes[b]||{}).length-Object.keys(s.votes[a]||{}).length);
+  document.getElementById('lcList').innerHTML=ids.length?ids.map(id=>{
+    const it=s.items[id], vc=Object.keys(s.votes[id]||{}).length, mine=!!(s.votes[id]||{})[ME], done=s.done[id];
+    return '<div class="prow'+(done?'':'')+'" style="'+(done?'opacity:.5;':'')+'"><button class="x" style="color:'+(mine?'var(--blue)':'var(--muted)')+'; font-size:15px;" onclick="lcVote(\''+id+'\')">👍</button> '+esc(it.text)
+      +'<span class="st">'+esc(it.author)+' · '+vc+(done?' · '+t('tartışıldı'):'')+'</span></div>';
+  }).join(''):'<p class="hint">'+t('Henüz konu yok. İlk konuyu sen ekle!')+'</p>';
+};
+
+/* ================= yelkenli retro ================= */
+const SAIL_COLS=['💨 Rüzgar — bizi ileri iten şeyler','⚓ Çapa — bizi geri tutan şeyler','🪨 Kayalar — önümüzdeki riskler','🏝️ Ada — hedefimiz / vizyonumuz'];
+const SAIL_DEF={notes:[],ts:0};
+let sailCol=0;
+function mergeSail(a,b){
+  const m={}; [...(a.notes||[]),...(b.notes||[])].forEach(n=>{ if(!m[n.id]||n.ts>m[n.id].ts) m[n.id]=n; });
+  return {notes:Object.values(m), ts:Math.max(a.ts||0,b.ts||0)};
+}
+SYNCS.sailboat=()=>gSync('sailboat',SAIL_DEF,mergeSail);
+function sailAdd(){
+  const inp=document.getElementById('sailText'), txt=inp.value.trim();
+  if(!txt){ toast(t('Önce bir şey yaz')); return; }
+  inp.value='';
+  gMut('sailboat',SAIL_DEF,mergeSail,s=>{ s.notes.push({id:uid(),text:txt,author:ME,col:sailCol,ts:Date.now()}); });
+}
+function sailReset(){
+  if(!isFac()){ facBlock(); return; }
+  gMut('sailboat',SAIL_DEF,mergeSail,s=>{ s.notes.forEach(n=>{ n.del=true; n.ts=Date.now(); }); });
+}
+function sailPick(i){ sailCol=i; RENDER.sailboat(); }
+RENDER.sailboat=function(){
+  const s=G.sailboat||SAIL_DEF, live=(s.notes||[]).filter(n=>!n.del);
+  document.getElementById('sailGrid').innerHTML=SAIL_COLS.map((c,i)=>
+    '<div class="sailq'+(i===sailCol?' sel':'')+'" onclick="sailPick('+i+')"><h3>'+t(c)+'</h3>'+
+    live.filter(n=>(n.col||0)===i).sort((a,b)=>a.ts-b.ts).map(n=>
+      '<div class="note" style="background:'+STICKY[i%STICKY.length]+';">'+esc(n.text)+'<span class="au">'+esc(n.author)+'</span></div>'
+    ).join('')+'</div>').join('');
+};
+
+/* ================= teşekkür duvarı ================= */
+const KD_DEF={items:[],ts:0};
+function mergeKd(a,b){
+  const m={}; [...(a.items||[]),...(b.items||[])].forEach(it=>{ if(!m[it.id]||it.ts>m[it.id].ts) m[it.id]=it; });
+  return {items:Object.values(m).sort((x,y)=>x.ts-y.ts), ts:Math.max(a.ts||0,b.ts||0)};
+}
+SYNCS.kudos=()=>gSync('kudos',KD_DEF,mergeKd);
+function kdAdd(){
+  const inp=document.getElementById('kdText'), txt=inp.value.trim();
+  if(!txt){ toast(t('Önce bir şey yaz')); return; }
+  inp.value='';
+  gMut('kudos',KD_DEF,mergeKd,s=>{ s.items.push({id:uid(),text:txt,author:ME,ts:Date.now()}); });
+}
+function kdReset(){
+  if(!isFac()){ facBlock(); return; }
+  gMut('kudos',KD_DEF,mergeKd,s=>{ s.items.forEach(it=>{ it.del=true; it.ts=Date.now(); }); });
+}
+RENDER.kudos=function(){
+  const items=(G.kudos&&G.kudos.items||[]).filter(it=>!it.del);
+  document.getElementById('kdWall').innerHTML=items.length?items.map(it=>
+    '<div class="kcard">'+esc(it.text)+'<span class="au">— '+esc(it.author)+'</span></div>'
+  ).join(''):'<p class="hint">'+t('Duvar henüz boş. İlk teşekkürü sen yaz!')+'</p>';
+};
+
+/* ================= sprint akışı ================= */
+const SF_SIZES=[{k:'S',e:1},{k:'M',e:3},{k:'L',e:5},{k:'XL',e:8}];
+const SF_DEF={tasks:[],ts:0};
+let sfDay=1, sfSize='M';
+function mergeSf(a,b){
+  const m={}; [...(a.tasks||[]),...(b.tasks||[])].forEach(x=>{ if(!m[x.id]||x.ts>m[x.id].ts) m[x.id]=x; });
+  return {tasks:Object.values(m), ts:Math.max(a.ts||0,b.ts||0)};
+}
+SYNCS.sprintflow=()=>gSync('sprintflow',SF_DEF,mergeSf);
+function sfPickSize(k){ sfSize=k; RENDER.sprintflow(); }
+function sfPickDay(d){ sfDay=d; RENDER.sprintflow(); }
+function sfAdd(){
+  const inp=document.getElementById('sfText'), txt=inp.value.trim();
+  if(!txt){ toast(t('Önce bir şey yaz')); return; }
+  inp.value='';
+  const eff=SF_SIZES.find(s=>s.k===sfSize).e;
+  gMut('sprintflow',SF_DEF,mergeSf,s=>{ s.tasks.push({id:uid(),text:txt,size:sfSize,eff:eff,day:sfDay,author:ME,ts:Date.now()}); });
+}
+function sfSplit(id){
+  gMut('sprintflow',SF_DEF,mergeSf,s=>{
+    const idx=s.tasks.findIndex(x=>x.id===id); if(idx<0) return;
+    const it=s.tasks[idx];
+    const order=['S','M','L','XL'], pos=order.indexOf(it.size);
+    const half=order[Math.max(0,pos-1)];
+    const heff=SF_SIZES.find(x=>x.k===half).e;
+    it.del=true; it.ts=Date.now();
+    s.tasks.push({id:uid(),text:it.text,size:half,eff:heff,day:it.day,author:it.author,ts:Date.now()});
+    s.tasks.push({id:uid(),text:it.text,size:half,eff:heff,day:Math.max(1,it.day-1),author:it.author,ts:Date.now()});
+  });
+  toast(t('İkiye bölündü — bir parçayı daha erken güne aldık 👍'));
+}
+function sfDel(id){
+  gMut('sprintflow',SF_DEF,mergeSf,s=>{ const it=s.tasks.find(x=>x.id===id); if(it){ it.del=true; it.ts=Date.now(); } });
+}
+function sfReset(){
+  if(!isFac()){ facBlock(); return; }
+  gMut('sprintflow',SF_DEF,mergeSf,s=>{ s.tasks.forEach(it=>{ it.del=true; it.ts=Date.now(); }); });
+}
+RENDER.sprintflow=function(){
+  document.getElementById('sfSizes').innerHTML=SF_SIZES.map(s=>
+    '<button class="'+(sfSize===s.k?'sel':'')+'" onclick="sfPickSize(\''+s.k+'\')">'+s.k+'</button>').join('');
+  const tasks=(G.sprintflow&&G.sprintflow.tasks||[]).filter(x=>!x.del);
+  const days=[1,2,3,4,5];
+  document.getElementById('sfDays').innerHTML=days.map(d=>{
+    const dt=tasks.filter(x=>x.day===d);
+    return '<div class="sfcol'+(sfDay===d?' sel':'')+'" onclick="sfPickDay('+d+')"><h4>'+t('Gün')+' '+d+(d===5?' <small>'+t('SON GÜN')+'</small>':'')+'</h4>'
+      +dt.map(it=>'<div class="sfcard"><span class="sz '+it.size+'">'+it.size+'</span>'+esc(it.text)
+        +'<span class="au">'+esc(it.author)+'</span><div class="ops">'
+        +(it.size!=='S'?'<button onclick="event.stopPropagation();sfSplit(\''+it.id+'\')">✂️ '+t('Parçala')+'</button>':'')
+        +(it.author===ME?'<button onclick="event.stopPropagation();sfDel(\''+it.id+'\')">✕ '+t('Sil')+'</button>':'')
+        +'</div></div>').join('')
+      +'</div>';
+  }).join('');
+  const total=tasks.reduce((a,x)=>a+x.eff,0)||0;
+  const perDay=days.map(d=>tasks.filter(x=>x.day===d).reduce((a,x)=>a+x.eff,0));
+  const maxV=Math.max(1,...perDay);
+  document.getElementById('sfLoad').innerHTML=days.map((d,i)=>{
+    const v=perDay[i], pct=total?Math.round(v/total*100):0;
+    const col=(d===5&&total&&v/total>0.35)?'var(--red)':(d===5?'var(--amber)':'var(--blue)');
+    return '<div class="sfbar"><div class="lab">'+t('Gün')+' '+d+'</div><div class="track"><div class="fill" style="background:'+col+'; width:'+(v/maxV*100)+'%;">'+(v?v+' ('+pct+'%)':'')+'</div></div></div>';
+  }).join('');
+  const ins=document.getElementById('sfInsight');
+  const lastShare=total?perDay[4]/total:0;
+  const hasBig=tasks.some(x=>x.size==='L'||x.size==='XL');
+  if(!total) ins.textContent=t('Henüz iş eklenmedi. Sprint\'teki gerçek işlerinizi ekleyin ve hangi güne planladığınızı görün.');
+  else if(lastShare>0.4) ins.textContent=t('🔥 İşlerin çoğu son güne yığılmış — bu tempoda yetişmeye çalışmak kaliteyi düşürür ve stres yaratır. Büyük kalemleri daha erken güne alıp parçalamayı deneyin.');
+  else if(hasBig) ins.textContent=t('💡 Dağılım fena değil ama hâlâ büyük (L/XL) işler var — bunları parçalamak tahmini kolaylaştırır ve riski azaltır.');
+  else ins.textContent=t('✅ İş dağılımı dengeli görünüyor — akış sağlıklı, son güne yığılma riski düşük.');
+};
+</script>
+</body>
+</html>
