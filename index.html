@@ -1232,7 +1232,7 @@ RENDER.emoji=function(){
   document.getElementById('emEmo').textContent=c.e;
   const ans=document.getElementById('emAns');
   ans.textContent=t(c.a); ans.classList.toggle('hidden-ans',!s.revealed);
-  document.getElementById('emReveal').disabled=s.revealed;
+  document.getElementById('emReveal').disabled=s.revealed||!isFac();
   document.getElementById('emIdx').textContent=(s.i+1)+' / '+s.order.length;
 };
 RENDER.quickq=function(){
@@ -1254,7 +1254,7 @@ RENDER.wyr=function(){
       +(s.revealed?'<span class="pct">%'+pct+' · '+cnt+t(' kişi')+'</span>':'')+'</button>';
   }).join('');
   document.getElementById('wyrIdx').textContent=(s.i+1)+' / '+s.order.length+' — '+n+t(' oy')+(s.revealed?'':t(' (gizli)'));
-  document.getElementById('wyrReveal').disabled=s.revealed;
+  document.getElementById('wyrReveal').disabled=s.revealed||!isFac();
 };
 RENDER.tf=function(){
   const s=G.tf, c=deckCard('tf'); if(!c) return;
