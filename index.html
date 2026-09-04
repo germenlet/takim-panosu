@@ -934,7 +934,7 @@ function copyRoomLink(){
     const randBtn=document.getElementById('randomRoomBtn');
     if(randBtn) randBtn.style.display='none';
     const facWrap=document.getElementById('facCheckWrap');
-    if(facWrap) facWrap.style.display='none';
+    if(facWrap) facWrap.style.setProperty('display','none','important');
     const nameInp=document.getElementById('jName');
     if(nameInp) setTimeout(()=>nameInp.focus(),0);
   }
