@@ -1,0 +1,19 @@
+name: Supabase keepalive
+
+on:
+  schedule:
+    # Her 3 günde bir çalışır — Supabase ücretsiz planın 7 günlük
+    # hareketsizlik eşiğinin altında kalıp projeyi otomatik
+    # duraklatmasını (pause) engeller.
+    - cron: '0 6 */3 * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supabase'e küçük bir okuma isteği gönder
+        run: |
+          curl -sS -o /dev/null -w "HTTP %{http_code}\n" \
+            "https://oguyxmjjjglxikwovnml.supabase.co/rest/v1/tp_kv?select=k&limit=1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ndXl4bWpqamdseGlrd292bm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1NDY5ODEsImV4cCI6MjEwNDEyMjk4MX0.l2_qr0E6DZQANd9zXPXf4CuAoPj16IINHfLeBASz_Wo"
