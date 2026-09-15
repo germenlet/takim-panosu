@@ -834,7 +834,7 @@ function navGame(v){
   if(f===ME) gMut('meta',META_DEF,mergeMeta,s=>{ s.game=v; });
 }
 function applyFacUI(){
-  document.querySelectorAll('.fac-only').forEach(b=>{ if(b.tagName==='BUTTON'||b.tagName==='INPUT') b.disabled=!isFac(); });
+  document.querySelectorAll('.fac-only').forEach(b=>{ if((b.tagName==='BUTTON'||b.tagName==='INPUT') && b.id!=='wyrReveal' && b.id!=='emReveal') b.disabled=!isFac(); });
   const f=G.meta&&G.meta.facilitator, locked=!!(f && f!==ME);
   document.querySelectorAll('.fac-nav').forEach(b=>{ b.style.display=locked?'none':''; });
   const hw=document.getElementById('homeWaiting'), hc=document.getElementById('homeContent');
