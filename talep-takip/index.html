@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talep Takip — Alışveriş &amp; Ödeme Takibi</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+:root{
+  --bg:#F3F5F8; --card:#FFFFFF; --ink:#182131; --muted:#6B7688; --line:#E3E7ED;
+  --primary:#2054E0; --primary-ink:#173FB0; --primary-soft:#E9EFFE;
+  --success:#16A34A; --success-soft:#E7F7ED;
+  --warn:#D97706; --warn-soft:#FDF1E0;
+  --danger:#DC2626; --danger-soft:#FCEAEA;
+  --shadow:0 1px 2px rgba(20,25,40,.06), 0 6px 18px rgba(20,25,40,.06);
+  --radius:14px;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased;}
+button{font-family:inherit; cursor:pointer;}
+input,select,textarea{font-family:inherit; font-size:15px; color:var(--ink);}
+.hidden{display:none !important;}
+.wrap{max-width:920px; margin:0 auto; padding:20px 16px 70px;}
+header{display:flex; align-items:center; gap:12px; padding:6px 4px 22px; flex-wrap:wrap;}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px;}
+.brand .ic{width:34px; height:34px; border-radius:9px; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;}
+.spacer{flex:1;}
+.whoami{font-size:13px; color:var(--muted); display:flex; align-items:center; gap:10px;}
+.whoami b{color:var(--ink);}
+.sync-dot{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted);}
+.sync-dot::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--success);}
+
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);}
+.pad{padding:22px;}
+.btn{border:none; border-radius:10px; padding:11px 18px; font-weight:700; font-size:14px; transition:transform .06s ease, opacity .15s;}
+.btn:active{transform:scale(.97);}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.btn-primary{background:var(--primary); color:#fff;}
+.btn-ghost{background:transparent; border:1.5px solid var(--line); color:var(--ink);}
+.btn-success{background:var(--success); color:#fff;}
+.btn-danger{background:transparent; color:var(--danger); border:1.5px solid var(--danger-soft);}
+.btn-sm{padding:7px 12px; font-size:12.5px; border-radius:8px;}
+.btn-block{width:100%;}
+.field{width:100%; border:1.5px solid var(--line); border-radius:10px; padding:11px 12px; background:#fff; margin-top:6px;}
+.field:focus{outline:none; border-color:var(--primary);}
+label{display:block; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-top:14px;}
+label:first-child{margin-top:0;}
+.hint{font-size:12.5px; color:var(--muted); line-height:1.5; margin-top:6px;}
+.row{display:flex; gap:10px;}
+.row > *{flex:1;}
+
+.view{display:none;} .view.active{display:block;}
+
+/* giriş */
+#view-giris .card{max-width:440px; margin:6vh auto 0; padding:32px;}
+.giris-logo{font-size:40px; margin-bottom:6px;}
+#view-giris h1{font-size:24px; font-weight:800; margin-bottom:6px;}
+#view-giris .sub{color:var(--muted); font-size:14px; line-height:1.5; margin-bottom:24px;}
+.role-buttons{display:flex; flex-direction:column; gap:10px;}
+.role-buttons .btn{padding:14px; font-size:15px; text-align:left; display:flex; align-items:center; gap:10px;}
+.role-form{margin-top:18px;}
+.backlink{display:inline-block; margin-top:14px; font-size:12.5px; color:var(--muted); background:none; border:none; text-decoration:underline;}
+
+/* backbar */
+.backbar{display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;}
+.backbar h2{font-size:22px; font-weight:800;}
+.backbar .spacer{flex:1;}
+
+.grid2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px;}
+@media (max-width:700px){.grid2{grid-template-columns:1fr;}}
+
+.summary-card h3{font-size:14px; margin-bottom:12px;}
+.summary-row{display:flex; justify-content:space-between; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--line); font-size:13.5px; color:var(--muted);}
+.summary-row:last-child{border-bottom:none;}
+.summary-row b{font-size:17px; color:var(--ink); font-weight:800;}
+.summary-row b.paid{color:var(--success);}
+
+.listsec{margin-top:26px;}
+.listsec h3{font-size:15px; font-weight:800; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+.listsec .count{background:var(--line); color:var(--muted); border-radius:999px; padding:1px 9px; font-size:11.5px; font-weight:700;}
+.empty{color:var(--muted); font-size:13.5px; padding:18px; text-align:center; border:1.5px dashed var(--line); border-radius:12px;}
+
+.item{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+.item .info{flex:1; min-width:180px;}
+.item .nm{font-weight:700; font-size:14.5px;}
+.item .ds{font-size:12.5px; color:var(--muted); margin-top:2px;}
+.item .ds a{color:var(--primary);}
+.item .amt{text-align:right; min-width:120px;}
+.item .amt .tl{font-weight:800; font-size:16px;}
+.item .amt .fx{font-size:11.5px; color:var(--muted);}
+.badge{font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap;}
+.badge.bekliyor{background:var(--warn-soft); color:var(--warn);}
+.badge.alindi{background:var(--primary-soft); color:var(--primary);}
+.badge.odendi{background:var(--success-soft); color:var(--success);}
+.badge.iptal{background:var(--danger-soft); color:var(--danger);}
+
+/* admin tabs */
+.tabs{display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap;}
+.tabbtn{background:var(--card); border:1.5px solid var(--line); border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; color:var(--muted);}
+.tabbtn.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+.tabpane{display:none;} .tabpane.active{display:block;}
+
+table{width:100%; border-collapse:collapse; font-size:13.5px;}
+th{text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); padding:8px 10px; border-bottom:1.5px solid var(--line);}
+td{padding:10px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.checkcell{width:30px;}
+.small-input{width:100%; border:1.5px solid var(--line); border-radius:8px; padding:7px 9px; font-size:13px;}
+
+.fisline{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;}
+.fisline .who{flex:1.2; min-width:120px;}
+.fisline .what{flex:1.6; min-width:150px;}
+.fisline .amt{width:110px;}
+.fisline .tlprev{width:110px; text-align:right; font-weight:700; font-size:13px; color:var(--primary);}
+.fisline .rm{background:none; border:none; color:var(--danger); font-size:16px; padding:4px;}
+
+.banner{padding:12px 16px; border-radius:10px; font-size:13px; margin-bottom:16px; display:flex; gap:10px; align-items:flex-start;}
+.banner.warn{background:var(--warn-soft); color:#8A5A0A;}
+.banner.info{background:var(--primary-soft); color:var(--primary-ink);}
+
+#toast-container{position:fixed; bottom:20px; right:20px; z-index:200; display:flex; flex-direction:column; gap:8px; max-width:320px;}
+.toast{background:var(--ink); color:#fff; padding:12px 16px; border-radius:10px; font-size:13px; box-shadow:var(--shadow); animation:toastin .2s ease;}
+.toast.err{background:var(--danger);}
+.toast.ok{background:var(--success);}
+@keyframes toastin{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+.filters{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+.filters select, .filters input{border:1.5px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="ic">🧾</span> Talep Takip</div>
+    <div class="spacer"></div>
+    <div class="whoami" id="whoamiBox"></div>
+  </header>
+
+  <!-- GİRİŞ -->
+  <div id="view-giris" class="view active">
+    <div class="card">
+      <div class="giris-logo">🧾</div>
+      <h1>Talep Takip</h1>
+      <p class="sub">Almamı istediğin ürünleri yaz. Satın aldığımda ne kadar tuttuğunu ve payına düşen tutarı burada göreceksin.</p>
+      <div class="role-buttons" id="roleButtons">
+        <button id="btnKisiRolu" class="btn btn-primary">👤 Talep Eden Kişiyim</button>
+        <button id="btnAdminRolu" class="btn btn-ghost">🔑 Yöneticiyim</button>
+      </div>
+      <div id="kisiGirisForm" class="role-form hidden">
+        <label>Adın Soyadın</label>
+        <input id="kisiAdInput" class="field" placeholder="örn. Ahmet Yılmaz" autocomplete="name">
+        <button id="kisiGirisBtn" class="btn btn-primary btn-block" style="margin-top:14px;">Devam Et →</button>
+        <button class="backlink" data-back>‹ Geri</button>
+      </div>
+      <div id="adminGirisForm" class="role-form hidden">
+        <label>Yönetici Şifresi</label>
+        <input id="adminPassInput" type="password" class="field" autocomplete="current-password">
+        <button id="adminGirisBtn" class="btn btn-primary btn-block" style="margin-top:14px;">Giriş Yap</button>
+        <button class="backlink" data-back>‹ Geri</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KİŞİ PANELİ -->
+  <div id="view-kisi" class="view">
+    <div class="backbar">
+      <h2>Merhaba, <span id="kisiAdBaslik"></span> 👋</h2>
+      <div class="spacer"></div>
+      <span class="sync-dot">canlı</span>
+      <button id="kisiCikisBtn" class="btn btn-ghost btn-sm">Çıkış</button>
+    </div>
+
+    <div class="grid2">
+      <div class="card pad">
+        <h3 style="font-size:15px; margin-bottom:4px;">Yeni Talep Ekle</h3>
+        <p class="hint" style="margin-top:0; margin-bottom:10px;">Almamı istediğin ürünü yaz, gerisini bana bırak.</p>
+        <label>Ürün Adı</label>
+        <input id="yeniUrunAdi" class="field" placeholder="örn. Kablosuz Kulaklık">
+        <label>Link / Not (opsiyonel)</label>
+        <input id="yeniUrunLink" class="field" placeholder="Ürün linki veya kısa not">
+        <button id="yeniTalepBtn" class="btn btn-primary btn-block" style="margin-top:16px;">+ Talep Et</button>
+      </div>
+      <div class="card pad summary-card">
+        <h3>Özet</h3>
+        <div class="summary-row"><span>Ödeme Bekleyen</span><b id="ozetBekleyenTL">0 ₺</b></div>
+        <div class="summary-row"><span>Toplam Ödenen</span><b class="paid" id="ozetOdenenTL">0 ₺</b></div>
+        <div class="summary-row"><span>Bekleyen Talep</span><b id="ozetBekliyorSayi">0</b></div>
+      </div>
+    </div>
+
+    <div class="listsec">
+      <h3>💳 Ödeme Bekleyenler <span class="count" id="cntAlindi">0</span></h3>
+      <div id="listeAlindi"></div>
+    </div>
+    <div class="listsec">
+      <h3>⏳ Bekleyen Taleplerim <span class="count" id="cntBekliyor">0</span></h3>
+      <div id="listeBekliyor"></div>
+    </div>
+    <div class="listsec">
+      <h3>✅ Ödediklerim <span class="count" id="cntOdendi">0</span></h3>
+      <div id="listeOdendi"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN PANELİ -->
+  <div id="view-admin" class="view">
+    <div class="backbar">
+      <h2>Yönetici Paneli</h2>
+      <div class="spacer"></div>
+      <span class="sync-dot">canlı</span>
+      <button id="adminCikisBtn" class="btn btn-ghost btn-sm">Çıkış</button>
+    </div>
+
+    <div id="emailjsBanner" class="banner warn hidden">
+      ⚠️ E-posta bildirimleri henüz ayarlanmadı. Birisi "Ödedim" dediğinde sana mail gitmeyecek. Kurulum için <code>kurulum.md</code> dosyasına bakabilirsin.
+    </div>
+
+    <div class="tabs">
+      <button class="tabbtn active" data-tab="bekleyen">📋 Bekleyen Talepler</button>
+      <button class="tabbtn" data-tab="fis">🧾 Fiş Oluştur</button>
+      <button class="tabbtn" data-tab="gecmis">📜 Tüm Kayıtlar</button>
+    </div>
+
+    <div id="tab-bekleyen" class="tabpane active">
+      <div class="card pad" style="margin-bottom:16px;">
+        <h3 style="font-size:14.5px; margin-bottom:10px;">Manuel Talep Ekle</h3>
+        <div class="row">
+          <div><label>Kişi Adı</label><input id="manKisiAdi" class="field" placeholder="Kişi adı"></div>
+          <div><label>Ürün Adı</label><input id="manUrunAdi" class="field" placeholder="Ürün adı"></div>
+        </div>
+        <button id="manEkleBtn" class="btn btn-ghost btn-sm" style="margin-top:12px;">+ Ekle</button>
+      </div>
+
+      <div class="card pad">
+        <div style="display:flex; align-items:center; margin-bottom:10px;">
+          <h3 style="font-size:14.5px;">Bekleyen Talepler — Fiş İçin Seç</h3>
+          <div class="spacer"></div>
+          <button id="fiseGonderBtn" class="btn btn-primary btn-sm" disabled>Seçilenlerle Fiş Oluştur →</button>
+        </div>
+        <div id="bekleyenTablo"></div>
+      </div>
+    </div>
+
+    <div id="tab-fis" class="tabpane">
+      <div class="card pad">
+        <div class="row">
+          <div>
+            <label>Para Birimi (Fişteki)</label>
+            <select id="fisParaBirimi" class="field">
+              <option value="USD">USD — Amerikan Doları</option>
+              <option value="EUR">EUR — Euro</option>
+              <option value="GBP">GBP — İngiliz Sterlini</option>
+              <option value="TRY">TRY — Türk Lirası</option>
+              <option value="DIGER">Diğer (kod yaz)</option>
+            </select>
+          </div>
+          <div id="fisParaBirimiDigerWrap" class="hidden">
+            <label>Para Birimi Kodu</label>
+            <input id="fisParaBirimiDiger" class="field" placeholder="örn. CHF">
+          </div>
+        </div>
+
+        <label style="margin-top:20px;">Fiş Kalemleri</label>
+        <div id="fisSatirlari" style="margin-top:8px;"></div>
+        <button id="fisSatirEkleBtn" class="btn btn-ghost btn-sm" style="margin-top:6px;">+ Satır Ekle</button>
+
+        <div class="summary-row" style="margin-top:16px;">
+          <span>Kalemler Toplamı (yabancı para)</span>
+          <b id="fisToplamYabanci">0.00</b>
+        </div>
+
+        <label>Bankanın Çektiği Toplam TL</label>
+        <input id="fisToplamTL" class="field" type="number" step="0.01" min="0" placeholder="örn. 1842.50">
+        <p class="hint">Bankanın hesap özetinde görünen gerçek TL tutarını yaz. Sistem bunu, yukarıdaki kalemlerin oranına göre otomatik olarak ürünlere paylaştıracak.</p>
+
+        <label>Not (opsiyonel)</label>
+        <input id="fisNot" class="field" placeholder="örn. Trendyol siparişi">
+
+        <button id="fisKaydetBtn" class="btn btn-primary btn-block" style="margin-top:18px;">Fişi Kaydet</button>
+      </div>
+    </div>
+
+    <div id="tab-gecmis" class="tabpane">
+      <div class="filters">
+        <select id="filtreDurum">
+          <option value="">Tüm Durumlar</option>
+          <option value="bekliyor">Bekliyor</option>
+          <option value="alindi">Ödeme Bekliyor</option>
+          <option value="odendi">Ödendi</option>
+          <option value="iptal">İptal</option>
+        </select>
+        <input id="filtreKisi" placeholder="Kişi adına göre filtrele">
+      </div>
+      <div class="grid2" style="margin-bottom:16px;">
+        <div class="card pad summary-card">
+          <div class="summary-row"><span>Toplam Alınan (TL)</span><b id="gcToplamAlinan">0 ₺</b></div>
+          <div class="summary-row"><span>Ödenen (TL)</span><b class="paid" id="gcToplamOdenen">0 ₺</b></div>
+          <div class="summary-row"><span>Bekleyen Ödeme (TL)</span><b id="gcBekleyenOdeme">0 ₺</b></div>
+        </div>
+      </div>
+      <div class="card pad"><div id="gecmisTablo"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+/* ============================================================
+   AYARLAR — kurulum.md dosyasındaki adımları takip ederek
+   aşağıdaki değerleri kendi bilgilerinle değiştir.
+   ============================================================ */
+const SUPABASE_URL = 'https://oguyxmjjjglxikwovnml.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ndXl4bWpqamdseGlrd292bm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1NDY5ODEsImV4cCI6MjEwNDEyMjk4MX0.l2_qr0E6DZQANd9zXPXf4CuAoPj16IINHfLeBASz_Wo';
+
+// EmailJS — https://emailjs.com üzerinden ücretsiz hesap açıp bu üçünü doldur (kurulum.md'ye bak)
+const EMAILJS_PUBLIC_KEY  = 'BURAYA_EMAILJS_PUBLIC_KEY';
+const EMAILJS_SERVICE_ID  = 'BURAYA_EMAILJS_SERVICE_ID';
+const EMAILJS_TEMPLATE_ID = 'BURAYA_EMAILJS_TEMPLATE_ID';
+const ADMIN_EMAIL = 'billozcan@gmail.com';
+
+// Yönetici şifresi varsayılan: talep2026  (değiştirmek için kurulum.md'ye bak)
+const ADMIN_PASS_HASH = '189493a487b84b7251f54563e6ea8bc297e8c27d2b2b44186e5b6578e21fa7a1';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const emailjsReady = EMAILJS_PUBLIC_KEY && !EMAILJS_PUBLIC_KEY.startsWith('BURAYA');
+if (emailjsReady && window.emailjs) emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+/* ============================================================ */
+
+const state = { role: null, kisiAdi: null, talepler: [], fisSatirlari: [] };
+
+function $(sel, root){ return (root||document).querySelector(sel); }
+function $all(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function uid(){ return 'x'+Math.random().toString(36).slice(2,10); }
+
+function formatTL(n){
+  return (Number(n)||0).toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
+}
+function formatFx(n, code){
+  try{ return (Number(n)||0).toLocaleString('tr-TR', {style:'currency', currency:code||'USD'}); }
+  catch(e){ return (Number(n)||0).toFixed(2) + ' ' + (code||''); }
+}
+
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function showToast(msg, type){
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' '+type : '');
+  el.textContent = msg;
+  $('#toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+
+// Fiş kalemlerinin yabancı para tutarlarını, bankanın çektiği toplam TL'ye orantılı paylaştırır.
+// Yuvarlama farkını en büyük kaleme ekleyerek toplamın tam eşleşmesini sağlar.
+function computeShares(items, toplamTL){
+  const toplamYabanci = items.reduce((s,i) => s + (Number(i.tutar)||0), 0);
+  if (toplamYabanci <= 0) return items.map(i => ({ ...i, tl: 0 }));
+  let shares = items.map(i => ({ ...i, tl: Math.round((Number(i.tutar)/toplamYabanci) * toplamTL * 100) / 100 }));
+  const sumShares = shares.reduce((s,i) => s + i.tl, 0);
+  const fark = Math.round((toplamTL - sumShares) * 100) / 100;
+  if (fark !== 0 && shares.length){
+    let maxIdx = 0;
+    shares.forEach((s,idx) => { if ((Number(s.tutar)||0) > (Number(shares[maxIdx].tutar)||0)) maxIdx = idx; });
+    shares[maxIdx].tl = Math.round((shares[maxIdx].tl + fark) * 100) / 100;
+  }
+  return shares;
+}
+
+/* ---------------- Görünüm / yönlendirme ---------------- */
+
+function showView(id){
+  $all('.view').forEach(v => v.classList.remove('active'));
+  $('#'+id).classList.add('active');
+}
+
+function boot(){
+  const savedKisi = localStorage.getItem('tt_kisi_adi');
+  const savedAdmin = localStorage.getItem('tt_admin_ok');
+  const urlKisi = new URLSearchParams(location.search).get('ben');
+  if (urlKisi) {
+    enterKisi(urlKisi);
+  } else if (savedAdmin === '1') {
+    enterAdmin();
+  } else if (savedKisi) {
+    enterKisi(savedKisi);
+  } else {
+    showView('view-giris');
+  }
+}
+
+function enterKisi(ad){
+  state.role = 'kisi'; state.kisiAdi = ad.trim();
+  localStorage.setItem('tt_kisi_adi', state.kisiAdi);
+  $('#kisiAdBaslik').textContent = state.kisiAdi;
+  $('#whoamiBox').innerHTML = '<b>'+escapeHtml(state.kisiAdi)+'</b> olarak görüntülüyorsun';
+  showView('view-kisi');
+  loadData();
+}
+
+function enterAdmin(){
+  state.role = 'admin'; state.kisiAdi = null;
+  localStorage.setItem('tt_admin_ok', '1');
+  $('#whoamiBox').innerHTML = '<b>Yönetici</b>';
+  if (!emailjsReady) $('#emailjsBanner').classList.remove('hidden');
+  showView('view-admin');
+  ensureOneFisLine();
+  loadData();
+}
+
+function logout(){
+  localStorage.removeItem('tt_kisi_adi');
+  localStorage.removeItem('tt_admin_ok');
+  state.role = null; state.kisiAdi = null;
+  history.replaceState(null, '', location.pathname);
+  showView('view-giris');
+  $('#roleButtons').classList.remove('hidden');
+  $('#kisiGirisForm').classList.add('hidden');
+  $('#adminGirisForm').classList.add('hidden');
+}
+
+/* ---------------- Giriş ekranı olayları ---------------- */
+
+$('#btnKisiRolu').addEventListener('click', () => {
+  $('#roleButtons').classList.add('hidden');
+  $('#kisiGirisForm').classList.remove('hidden');
+  $('#kisiAdInput').focus();
+});
+$('#btnAdminRolu').addEventListener('click', () => {
+  $('#roleButtons').classList.add('hidden');
+  $('#adminGirisForm').classList.remove('hidden');
+  $('#adminPassInput').focus();
+});
+$all('[data-back]').forEach(b => b.addEventListener('click', () => {
+  $('#roleButtons').classList.remove('hidden');
+  $('#kisiGirisForm').classList.add('hidden');
+  $('#adminGirisForm').classList.add('hidden');
+}));
+$('#kisiGirisBtn').addEventListener('click', () => {
+  const ad = $('#kisiAdInput').value.trim();
+  if (!ad) return showToast('Lütfen adını yaz', 'err');
+  enterKisi(ad);
+});
+$('#kisiAdInput').addEventListener('keydown', e => { if (e.key==='Enter') $('#kisiGirisBtn').click(); });
+$('#adminGirisBtn').addEventListener('click', async () => {
+  const pass = $('#adminPassInput').value;
+  const hash = await sha256Hex(pass);
+  if (hash === ADMIN_PASS_HASH) { enterAdmin(); }
+  else showToast('Şifre yanlış', 'err');
+});
+$('#adminPassInput').addEventListener('keydown', e => { if (e.key==='Enter') $('#adminGirisBtn').click(); });
+$('#kisiCikisBtn').addEventListener('click', logout);
+$('#adminCikisBtn').addEventListener('click', logout);
+
+/* ---------------- Veri yükleme + realtime ---------------- */
+
+async function loadData(){
+  const { data, error } = await sb.from('tt_talep').select('*').order('created_at', { ascending: false });
+  if (error){
+    showToast('Veri okunamadı — Supabase tabloları kurulmuş mu? (kurulum.md)', 'err');
+    console.error(error);
+    return;
+  }
+  state.talepler = data || [];
+  renderAll();
+}
+
+let realtimeChannel = null;
+function setupRealtime(){
+  if (realtimeChannel) return;
+  realtimeChannel = sb.channel('tt-talep-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tt_talep' }, payload => {
+      onRealtimeChange(payload);
+      loadData();
+    })
+    .subscribe();
+}
+
+function onRealtimeChange(payload){
+  if (state.role !== 'admin') return;
+  const row = payload.new;
+  if (payload.eventType === 'UPDATE' && row && row.durum === 'odendi'){
+    const eski = payload.old;
+    if (eski && eski.durum !== 'odendi'){
+      showToast('💸 '+row.kisi_adi+' ödedi: '+row.urun_adi+' ('+formatTL(row.tl_payi)+')', 'ok');
+      if (window.Notification && Notification.permission === 'granted'){
+        new Notification('Ödeme yapıldı', { body: row.kisi_adi+' — '+row.urun_adi+' — '+formatTL(row.tl_payi) });
+      }
+    }
+  }
+}
+setupRealtime();
+if (window.Notification && Notification.permission === 'default'){
+  document.addEventListener('click', () => Notification.requestPermission(), { once:true });
+}
+
+function renderAll(){
+  if (state.role === 'kisi') renderKisiView();
+  if (state.role === 'admin') { renderBekleyenTab(); renderGecmisTab(); }
+}
+
+/* ---------------- Kişi paneli ---------------- */
+
+function renderKisiView(){
+  const mine = state.talepler.filter(t => t.kisi_adi.toLowerCase() === state.kisiAdi.toLowerCase());
+  const bekliyor = mine.filter(t => t.durum === 'bekliyor');
+  const alindi = mine.filter(t => t.durum === 'alindi');
+  const odendi = mine.filter(t => t.durum === 'odendi');
+
+  $('#cntBekliyor').textContent = bekliyor.length;
+  $('#cntAlindi').textContent = alindi.length;
+  $('#cntOdendi').textContent = odendi.length;
+
+  const bekleyenToplam = alindi.reduce((s,t) => s + (Number(t.tl_payi)||0), 0);
+  const odenenToplam = odendi.reduce((s,t) => s + (Number(t.tl_payi)||0), 0);
+  $('#ozetBekleyenTL').textContent = formatTL(bekleyenToplam);
+  $('#ozetOdenenTL').textContent = formatTL(odenenToplam);
+  $('#ozetBekliyorSayi').textContent = bekliyor.length;
+
+  $('#listeBekliyor').innerHTML = bekliyor.length ? bekliyor.map(t => `
+    <div class="item">
+      <div class="info">
+        <div class="nm">${escapeHtml(t.urun_adi)}</div>
+        ${t.urun_link ? `<div class="ds">${escapeHtml(t.urun_link)}</div>` : ''}
+      </div>
+      <span class="badge bekliyor">Bekliyor</span>
+      <button class="btn btn-danger btn-sm" data-iptal="${t.id}">İptal Et</button>
+    </div>`).join('') : '<div class="empty">Henüz bekleyen talebin yok.</div>';
+
+  $('#listeAlindi').innerHTML = alindi.length ? alindi.map(t => `
+    <div class="item">
+      <div class="info">
+        <div class="nm">${escapeHtml(t.urun_adi)}</div>
+        <div class="ds">${formatFx(t.tutar_yabanci, t.para_birimi)} · ${new Date(t.alindi_at||t.created_at).toLocaleDateString('tr-TR')}</div>
+      </div>
+      <div class="amt"><div class="tl">${formatTL(t.tl_payi)}</div><div class="fx">senin payın</div></div>
+      <button class="btn btn-success btn-sm" data-odedim="${t.id}">💸 Ödedim</button>
+    </div>`).join('') : '<div class="empty">Ödeme bekleyen bir şey yok.</div>';
+
+  $('#listeOdendi').innerHTML = odendi.length ? odendi.map(t => `
+    <div class="item">
+      <div class="info">
+        <div class="nm">${escapeHtml(t.urun_adi)}</div>
+        <div class="ds">${new Date(t.odendi_at).toLocaleDateString('tr-TR')} tarihinde ödendi</div>
+      </div>
+      <div class="amt"><div class="tl">${formatTL(t.tl_payi)}</div></div>
+      <span class="badge odendi">✓ Ödendi</span>
+    </div>`).join('') : '<div class="empty">Henüz ödeme geçmişin yok.</div>';
+
+  $all('[data-odedim]').forEach(b => b.addEventListener('click', () => markPaid(b.dataset.odedim)));
+  $all('[data-iptal]').forEach(b => b.addEventListener('click', () => cancelRequest(b.dataset.iptal)));
+}
+
+$('#yeniTalepBtn').addEventListener('click', async () => {
+  const urun = $('#yeniUrunAdi').value.trim();
+  const link = $('#yeniUrunLink').value.trim();
+  if (!urun) return showToast('Ürün adı yaz', 'err');
+  const { error } = await sb.from('tt_talep').insert({ kisi_adi: state.kisiAdi, urun_adi: urun, urun_link: link || null, durum: 'bekliyor' });
+  if (error) { showToast('Kaydedilemedi', 'err'); console.error(error); return; }
+  $('#yeniUrunAdi').value = ''; $('#yeniUrunLink').value = '';
+  showToast('Talebin eklendi ✓', 'ok');
+  loadData();
+});
+
+async function cancelRequest(id){
+  if (!confirm('Bu talebi iptal etmek istediğine emin misin?')) return;
+  const { error } = await sb.from('tt_talep').update({ durum: 'iptal' }).eq('id', id);
+  if (error) { showToast('İşlem başarısız', 'err'); return; }
+  loadData();
+}
+
+async function markPaid(id){
+  const row = state.talepler.find(t => t.id === id);
+  if (!row) return;
+  if (!confirm('"'+row.urun_adi+'" için '+formatTL(row.tl_payi)+' ödediğini onaylıyor musun?')) return;
+  const { error } = await sb.from('tt_talep').update({ durum: 'odendi', odendi_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('İşlem başarısız', 'err'); console.error(error); return; }
+  showToast('Ödeme kaydedildi, teşekkürler! ✓', 'ok');
+  notifyAdminByEmail(row);
+  loadData();
+}
+
+async function notifyAdminByEmail(row){
+  if (!emailjsReady || !window.emailjs) return;
+  try{
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email: ADMIN_EMAIL,
+      kisi_adi: row.kisi_adi,
+      urun_adi: row.urun_adi,
+      tutar: formatFx(row.tutar_yabanci, row.para_birimi),
+      tl_payi: formatTL(row.tl_payi),
+      tarih: new Date().toLocaleString('tr-TR')
+    });
+  }catch(e){ console.error('EmailJS gönderim hatası', e); }
+}
+
+/* ---------------- Admin — sekmeler ---------------- */
+
+$all('.tabbtn').forEach(btn => btn.addEventListener('click', () => {
+  $all('.tabbtn').forEach(b => b.classList.remove('active'));
+  $all('.tabpane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  $('#tab-'+btn.dataset.tab).classList.add('active');
+}));
+
+function renderBekleyenTab(){
+  const bekliyor = state.talepler.filter(t => t.durum === 'bekliyor');
+  if (!bekliyor.length){
+    $('#bekleyenTablo').innerHTML = '<div class="empty">Bekleyen talep yok.</div>';
+    $('#fiseGonderBtn').disabled = true;
+    return;
+  }
+  $('#bekleyenTablo').innerHTML = `
+    <table>
+      <thead><tr><th class="checkcell"></th><th>Kişi</th><th>Ürün</th><th>Not / Link</th><th>Tarih</th></tr></thead>
+      <tbody>
+        ${bekliyor.map(t => `
+          <tr>
+            <td class="checkcell"><input type="checkbox" class="beksel" value="${t.id}"></td>
+            <td>${escapeHtml(t.kisi_adi)}</td>
+            <td>${escapeHtml(t.urun_adi)}</td>
+            <td>${t.urun_link ? escapeHtml(t.urun_link) : '—'}</td>
+            <td>${new Date(t.created_at).toLocaleDateString('tr-TR')}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  $all('.beksel').forEach(cb => cb.addEventListener('change', updateFiseGonderBtn));
+  updateFiseGonderBtn();
+}
+
+function updateFiseGonderBtn(){
+  const secili = $all('.beksel:checked').length;
+  $('#fiseGonderBtn').disabled = secili === 0;
+  $('#fiseGonderBtn').textContent = secili ? `Seçilen ${secili} talep ile Fiş Oluştur →` : 'Seçilenlerle Fiş Oluştur →';
+}
+
+$('#manEkleBtn').addEventListener('click', async () => {
+  const kisi = $('#manKisiAdi').value.trim();
+  const urun = $('#manUrunAdi').value.trim();
+  if (!kisi || !urun) return showToast('Kişi ve ürün adı gerekli', 'err');
+  const { error } = await sb.from('tt_talep').insert({ kisi_adi: kisi, urun_adi: urun, durum: 'bekliyor' });
+  if (error) { showToast('Eklenemedi', 'err'); return; }
+  $('#manKisiAdi').value = ''; $('#manUrunAdi').value = '';
+  showToast('Eklendi ✓', 'ok');
+  loadData();
+});
+
+$('#fiseGonderBtn').addEventListener('click', () => {
+  const ids = $all('.beksel:checked').map(cb => cb.value);
+  const secilenler = state.talepler.filter(t => ids.includes(t.id));
+  state.fisSatirlari = secilenler.map(t => ({ id: uid(), talepId: t.id, kisi: t.kisi_adi, urun: t.urun_adi, tutar: '' }));
+  if (!state.fisSatirlari.length) ensureOneFisLine();
+  renderFisSatirlari();
+  $all('.tabbtn').forEach(b => b.classList.remove('active'));
+  $all('.tabpane').forEach(p => p.classList.remove('active'));
+  $('.tabbtn[data-tab="fis"]').classList.add('active');
+  $('#tab-fis').classList.add('active');
+});
+
+/* ---------------- Admin — fiş oluşturma ---------------- */
+
+function ensureOneFisLine(){
+  if (!state.fisSatirlari.length) state.fisSatirlari = [{ id: uid(), talepId: null, kisi: '', urun: '', tutar: '' }];
+  renderFisSatirlari();
+}
+
+$('#fisSatirEkleBtn').addEventListener('click', () => {
+  state.fisSatirlari.push({ id: uid(), talepId: null, kisi: '', urun: '', tutar: '' });
+  renderFisSatirlari();
+});
+
+$('#fisParaBirimi').addEventListener('change', () => {
+  $('#fisParaBirimiDigerWrap').classList.toggle('hidden', $('#fisParaBirimi').value !== 'DIGER');
+});
+
+function currentFisParaBirimi(){
+  const sel = $('#fisParaBirimi').value;
+  return sel === 'DIGER' ? ($('#fisParaBirimiDiger').value.trim().toUpperCase() || 'XXX') : sel;
+}
+
+function renderFisSatirlari(){
+  const toplamTL = Number($('#fisToplamTL').value) || 0;
+  const shares = computeShares(state.fisSatirlari.map(l => ({ ...l, tutar: Number(l.tutar)||0 })), toplamTL);
+  const shareMap = {}; shares.forEach(s => shareMap[s.id] = s.tl);
+
+  $('#fisSatirlari').innerHTML = state.fisSatirlari.map(l => `
+    <div class="fisline" data-line="${l.id}">
+      <input class="small-input who" placeholder="Kişi" value="${escapeHtml(l.kisi)}" data-f="kisi">
+      <input class="small-input what" placeholder="Ürün" value="${escapeHtml(l.urun)}" data-f="urun">
+      <input class="small-input amt" type="number" step="0.01" min="0" placeholder="Tutar" value="${escapeHtml(l.tutar)}" data-f="tutar">
+      <div class="tlprev">${formatTL(shareMap[l.id]||0)}</div>
+      <button class="rm" data-rm="${l.id}">✕</button>
+    </div>`).join('');
+
+  $all('#fisSatirlari input').forEach(inp => inp.addEventListener('input', () => {
+    const lineEl = inp.closest('[data-line]');
+    const line = state.fisSatirlari.find(l => l.id === lineEl.dataset.line);
+    line[inp.dataset.f] = inp.value;
+    renderFisSatirlari();
+  }));
+  $all('#fisSatirlari [data-rm]').forEach(b => b.addEventListener('click', () => {
+    state.fisSatirlari = state.fisSatirlari.filter(l => l.id !== b.dataset.rm);
+    if (!state.fisSatirlari.length) state.fisSatirlari.push({ id: uid(), talepId: null, kisi: '', urun: '', tutar: '' });
+    renderFisSatirlari();
+  }));
+
+  const toplamYabanci = state.fisSatirlari.reduce((s,l) => s + (Number(l.tutar)||0), 0);
+  $('#fisToplamYabanci').textContent = toplamYabanci.toFixed(2) + ' ' + currentFisParaBirimi();
+}
+$('#fisToplamTL').addEventListener('input', renderFisSatirlari);
+
+$('#fisKaydetBtn').addEventListener('click', async () => {
+  const paraBirimi = currentFisParaBirimi();
+  const toplamTL = Number($('#fisToplamTL').value);
+  const gecerli = state.fisSatirlari.filter(l => l.kisi.trim() && l.urun.trim() && Number(l.tutar) > 0);
+
+  if (!gecerli.length) return showToast('En az bir geçerli satır gir (kişi, ürün, tutar)', 'err');
+  if (!toplamTL || toplamTL <= 0) return showToast('Bankanın çektiği toplam TL tutarını gir', 'err');
+
+  $('#fisKaydetBtn').disabled = true;
+  try{
+    const { data: fis, error: fisErr } = await sb.from('tt_fis')
+      .insert({ para_birimi: paraBirimi, toplam_tl: toplamTL, aciklama: $('#fisNot').value.trim() || null })
+      .select().single();
+    if (fisErr) throw fisErr;
+
+    const shares = computeShares(gecerli.map(l => ({ ...l, tutar: Number(l.tutar) })), toplamTL);
+    const now = new Date().toISOString();
+
+    for (const s of shares){
+      const payload = {
+        durum: 'alindi', fis_id: fis.id, tutar_yabanci: Number(s.tutar),
+        para_birimi: paraBirimi, tl_payi: s.tl, alindi_at: now
+      };
+      if (s.talepId){
+        const { error } = await sb.from('tt_talep').update(payload).eq('id', s.talepId);
+        if (error) throw error;
+      } else {
+        const { error } = await sb.from('tt_talep').insert({ kisi_adi: s.kisi, urun_adi: s.urun, ...payload });
+        if (error) throw error;
+      }
+    }
+
+    showToast('Fiş kaydedildi ✓', 'ok');
+    state.fisSatirlari = [];
+    $('#fisToplamTL').value = ''; $('#fisNot').value = '';
+    ensureOneFisLine();
+    loadData();
+  }catch(e){
+    console.error(e);
+    showToast('Fiş kaydedilemedi — Supabase tabloları kurulmuş mu?', 'err');
+  }finally{
+    $('#fisKaydetBtn').disabled = false;
+  }
+});
+
+/* ---------------- Admin — tüm kayıtlar ---------------- */
+
+function renderGecmisTab(){
+  const durumF = $('#filtreDurum').value;
+  const kisiF = $('#filtreKisi').value.trim().toLowerCase();
+  let rows = state.talepler.slice();
+  if (durumF) rows = rows.filter(t => t.durum === durumF);
+  if (kisiF) rows = rows.filter(t => t.kisi_adi.toLowerCase().includes(kisiF));
+
+  const alinanToplam = state.talepler.filter(t => t.durum==='alindi'||t.durum==='odendi').reduce((s,t)=>s+(Number(t.tl_payi)||0),0);
+  const odenenToplam = state.talepler.filter(t => t.durum==='odendi').reduce((s,t)=>s+(Number(t.tl_payi)||0),0);
+  $('#gcToplamAlinan').textContent = formatTL(alinanToplam);
+  $('#gcToplamOdenen').textContent = formatTL(odenenToplam);
+  $('#gcBekleyenOdeme').textContent = formatTL(alinanToplam - odenenToplam);
+
+  const badge = d => `<span class="badge ${d}">${({bekliyor:'Bekliyor',alindi:'Ödeme Bekliyor',odendi:'Ödendi',iptal:'İptal'})[d]||d}</span>`;
+
+  $('#gecmisTablo').innerHTML = rows.length ? `
+    <table>
+      <thead><tr><th>Kişi</th><th>Ürün</th><th>Tutar</th><th>TL Payı</th><th>Durum</th><th>Tarih</th></tr></thead>
+      <tbody>
+        ${rows.map(t => `
+          <tr>
+            <td>${escapeHtml(t.kisi_adi)}</td>
+            <td>${escapeHtml(t.urun_adi)}</td>
+            <td>${t.tutar_yabanci ? formatFx(t.tutar_yabanci, t.para_birimi) : '—'}</td>
+            <td>${t.tl_payi ? formatTL(t.tl_payi) : '—'}</td>
+            <td>${badge(t.durum)}</td>
+            <td>${new Date(t.created_at).toLocaleDateString('tr-TR')}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>` : '<div class="empty">Kayıt yok.</div>';
+}
+$('#filtreDurum').addEventListener('change', renderGecmisTab);
+$('#filtreKisi').addEventListener('input', renderGecmisTab);
+
+boot();
+</script>
+</body>
+</html>
