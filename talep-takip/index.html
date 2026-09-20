@@ -691,11 +691,24 @@ function renderFisSatirlari(){
   const shares = computeShares(state.fisSatirlari.map(l => ({ ...l, tutar: Number(l.tutar)||0 })), toplamTL);
   const shareMap = {}; shares.forEach(s => shareMap[s.id] = s.tl);
 
+  // Odaklanmış input'u ve imleç konumunu, innerHTML yeniden yazımı sonrası geri koymak için sakla
+  // (yoksa her tuş vuruşunda input yok edilip yeniden oluşturulduğu için odak kayboluyordu)
+  const active = document.activeElement;
+  let focusInfo = null;
+  if (active && active.closest && active.closest('#fisSatirlari')){
+    focusInfo = {
+      lineId: active.closest('[data-line]').dataset.line,
+      field: active.dataset.f,
+      selStart: active.selectionStart,
+      selEnd: active.selectionEnd
+    };
+  }
+
   $('#fisSatirlari').innerHTML = state.fisSatirlari.map(l => `
     <div class="fisline" data-line="${l.id}">
       <input class="small-input who" placeholder="Kişi" value="${escapeHtml(l.kisi)}" data-f="kisi">
       <input class="small-input what" placeholder="Ürün" value="${escapeHtml(l.urun)}" data-f="urun">
-      <input class="small-input amt" type="number" step="0.01" min="0" placeholder="Tutar" value="${escapeHtml(l.tutar)}" data-f="tutar">
+      <input class="small-input amt" type="text" inputmode="decimal" placeholder="Tutar" value="${escapeHtml(l.tutar)}" data-f="tutar">
       <div class="tlprev">${formatTL(shareMap[l.id]||0)}</div>
       <button class="rm" data-rm="${l.id}">✕</button>
     </div>`).join('');
@@ -706,6 +719,14 @@ function renderFisSatirlari(){
     line[inp.dataset.f] = inp.value;
     renderFisSatirlari();
   }));
+
+  if (focusInfo){
+    const toRefocus = $(`#fisSatirlari [data-line="${focusInfo.lineId}"] [data-f="${focusInfo.field}"]`);
+    if (toRefocus){
+      toRefocus.focus();
+      if (toRefocus.type !== 'number') toRefocus.setSelectionRange(focusInfo.selStart, focusInfo.selEnd);
+    }
+  }
   $all('#fisSatirlari [data-rm]').forEach(b => b.addEventListener('click', () => {
     state.fisSatirlari = state.fisSatirlari.filter(l => l.id !== b.dataset.rm);
     if (!state.fisSatirlari.length) state.fisSatirlari.push({ id: uid(), talepId: null, kisi: '', urun: '', tutar: '' });
